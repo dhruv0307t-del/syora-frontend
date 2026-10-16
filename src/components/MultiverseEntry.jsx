@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UNIVERSES, UNIVERSE_ORDER } from '../data/universes';
 import Footer from './Footer';
-import heroPoster from '../assets/secondary_hero.png';
 
 const VIDEO_SRC = '/syora-home-loop.mp4';
 
@@ -99,7 +98,6 @@ export default function MultiverseEntry() {
             ref={videoRef}
             className="mv2-hero__video"
             src={VIDEO_SRC}
-            poster={heroPoster}
             autoPlay
             muted
             loop
@@ -164,7 +162,9 @@ export default function MultiverseEntry() {
                     src={u.heroImage}
                     alt={u.name}
                     className="mv2-tile__img"
-                    loading="eager"
+                    loading="lazy"
+                    decoding="async"
+                    fetchPriority="low"
                   />
                   <div className="mv2-tile__img-overlay" />
                 </div>
@@ -193,7 +193,7 @@ export default function MultiverseEntry() {
       ══════════════════════════════════════════ */}
       <section className="mv2-about" id="about" aria-labelledby="mv2-about-title">
         <div className="mv2-about__img-col">
-          <img src="/about us.png" alt="SYORA craftsmanship" className="mv2-about__img" />
+          <img src="/about-us.jpg" alt="SYORA craftsmanship" className="mv2-about__img" loading="lazy" decoding="async" />
         </div>
         <div className="mv2-about__copy">
           <p className="mv2-about__eyebrow">

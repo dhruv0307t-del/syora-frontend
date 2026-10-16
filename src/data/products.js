@@ -134,7 +134,7 @@ export const PRODUCTS = {
 
     /* Editorial */
     editorialTagline: 'DIFFERENT WORLDS.\nSAME YOU.',
-    editorialBg: '/SYORA_ICON_Hero_High_Resolution (1).png',
+    editorialBg: '/hero-icon.jpg',
   },
 
   'icon-2': {
@@ -219,7 +219,7 @@ export const PRODUCTS = {
     pageTitle: 'Vienna Block Heels — SYORA',
     pageDescription: 'Shop the Vienna Block Heels — wide-base 3" block heels in Cognac, Ivory & Noir. True to size. COD available.',
     editorialTagline: 'DIFFERENT WORLDS.\nSAME YOU.',
-    editorialBg: '/SYORA_ICON_Hero_High_Resolution (1).png',
+    editorialBg: '/hero-icon.jpg',
   },
 
   /* ── HERITAGE Universe ── */
@@ -312,7 +312,7 @@ export const PRODUCTS = {
     pageTitle: 'Rangrez Juttis — SYORA Heritage',
     pageDescription: 'Shop the Rangrez hand-embroidered juttis — resham & zardozi work on velvet. Perfect for weddings & festivals. COD available.',
     editorialTagline: 'DIFFERENT WORLDS.\nSAME YOU.',
-    editorialBg: '/SYORA_HERITAGE_Hero_High_Resolution.jpg',
+    editorialBg: '/hero-heritage.jpg',
   },
 
   'her-2': {
@@ -391,7 +391,7 @@ export const PRODUCTS = {
     pageTitle: 'Basant Embroidered Juttis — SYORA Heritage',
     pageDescription: 'Shop the Basant hand-embroidered silk juttis — metallic threadwork, padded sole. Perfect for weddings & sangeet. COD available.',
     editorialTagline: 'DIFFERENT WORLDS.\nSAME YOU.',
-    editorialBg: '/SYORA_HERITAGE_Hero_High_Resolution.jpg',
+    editorialBg: '/hero-heritage.jpg',
   },
 
   'her-3': {
@@ -476,7 +476,7 @@ export const PRODUCTS = {
     pageTitle: 'Mitti Everyday Juttis — SYORA Heritage',
     pageDescription: 'Shop the Mitti block-printed cotton juttis — thick cushioned sole, 8+ hour comfort. Daily wear craftsmanship. COD available.',
     editorialTagline: 'DIFFERENT WORLDS.\nSAME YOU.',
-    editorialBg: '/SYORA_HERITAGE_Hero_High_Resolution.jpg',
+    editorialBg: '/hero-heritage.jpg',
   },
 
   /* ── EVERYDAY Universe ── */
@@ -562,7 +562,7 @@ export const PRODUCTS = {
     pageTitle: 'Luna Everyday Flats — SYORA',
     pageDescription: 'Shop the Luna Everyday Flats — memory foam insole, soft leather, 8+ hours of comfort. Office to evening. COD available.',
     editorialTagline: 'DIFFERENT WORLDS.\nSAME YOU.',
-    editorialBg: '/SYORA_EVERYDAY_Hero_High_Resolution.jpg',
+    editorialBg: '/hero-everyday.jpg',
   },
 };
 

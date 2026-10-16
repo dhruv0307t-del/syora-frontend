@@ -35,7 +35,7 @@ export const UNIVERSES = {
       heroGradient: 'transparent',
       heroText: '#ffffff',
     },
-    heroImage: '/SYORA_ICON_Hero_High_Resolution (1).png',
+    heroImage: '/hero-icon.jpg',
     heroImageAlt: 'SYORA ICON heels',
     products: [
       { id: 'icon-1', img: heelsImg,   name: 'Strappy Heels',       price: '₹3,499', badge: 'BESTSELLER' },
@@ -64,7 +64,7 @@ export const UNIVERSES = {
       heroGradient: 'transparent',
       heroText: '#ffffff',
     },
-    heroImage: '/SYORA_HERITAGE_Hero_High_Resolution.jpg',
+    heroImage: '/hero-heritage.jpg',
     heroImageAlt: 'SYORA HERITAGE juttis',
     products: [
       { id: 'her-1', img: juttiSig, name: 'Signature Juttis',    price: '₹2,499', badge: 'BESTSELLER' },
@@ -94,7 +94,7 @@ export const UNIVERSES = {
       heroGradient: 'transparent',
       heroText: '#ffffff',
     },
-    heroImage: '/SYORA_EVERYDAY_Hero_High_Resolution.jpg',
+    heroImage: '/hero-everyday.jpg',
     heroImageAlt: 'SYORA EVERYDAY flats and loafers',
     products: [
       { id: 'evr-1', img: juttiEvy,  name: 'Everyday Jutti-Flat', price: '₹2,299', badge: null },
@@ -122,7 +122,7 @@ export const UNIVERSES = {
       heroGradient: 'transparent',
       heroText: '#ffffff',
     },
-    heroImage: '/SYORA_MOTION_Hero_High_Resolution_2x.jpg',
+    heroImage: '/hero-motion.jpg',
     heroImageAlt: 'SYORA MOTION sneakers',
     // No sneaker product images in current assets — placeholder grid below
     products: [
@@ -149,7 +149,7 @@ export const UNIVERSES = {
       heroGradient: 'transparent',
       heroText: '#ffffff',
     },
-    heroImage: '/SYORA_OFF_DUTY_Hero_High_Resolution.png',
+    heroImage: '/hero-off-duty.jpg',
     heroImageAlt: 'SYORA OFF-DUTY clogs and slides',
     products: [
       // ⚠️ CONNECT CLOG/SLIDE PRODUCT DATA HERE
