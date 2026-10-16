@@ -1890,6 +1890,10 @@
   object-position: center center;
   display: block;
   z-index: 0;
+  /* Blur the moving backdrop directly. This stays reliable when a browser
+     cannot composite backdrop-filter over a video layer. */
+  filter: blur(4px);
+  transform: scale(1.02);
 }
 
 /* Full-screen glassmorphism over the entire video
@@ -1902,11 +1906,7 @@
   z-index: 1;
   pointer-events: none;
 
-  /* Frosted glass — subtle blur over entire screen */
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-
-  /* Very light warm tint — barely visible, just enough to unify */
+  /* Very light warm tint over the already-frosted video backdrop */
   background: rgba(245, 232, 210, 0.07);
 
   /* Soft top + bottom gradient edges for text legibility */
