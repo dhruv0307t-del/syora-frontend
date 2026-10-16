@@ -2,8 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UNIVERSES, UNIVERSE_ORDER } from '../data/universes';
 import Footer from './Footer';
+import heroPoster from '../assets/secondary_hero.png';
 
-const VIDEO_SRC = '/Model_changing_outfits_across_en…_20260922122547_gwr_video_mvp.mp4';
+const VIDEO_SRC = '/syora-home-loop.mp4';
 
 /* ── Universe icons (inline SVG, fashion-themed) ── */
 const UNIVERSE_ICONS = {
@@ -98,7 +99,7 @@ export default function MultiverseEntry() {
             ref={videoRef}
             className="mv2-hero__video"
             src={VIDEO_SRC}
-            poster="/syora_hero.png"
+            poster={heroPoster}
             autoPlay
             muted
             loop
