@@ -55,14 +55,22 @@ export default function MultiverseEntry() {
   const navigate = useNavigate();
   const [selected, setSelected] = useState(null);
   const [exploreRevealed, setExploreRevealed] = useState(false);
-  const videoRef = useRef(null);
+  const [shouldPlayHeroVideo, setShouldPlayHeroVideo] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !window.matchMedia('(max-width: 767px)').matches
+      && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
   const exploreRef = useRef(null);
 
   useEffect(() => {
-    // Trigger video playback
-    if (videoRef.current) {
-      videoRef.current.play().catch(() => {});
-    }
+    // Keep the full-bleed video off mobile connections and honor reduced motion.
+    const mobileQuery = window.matchMedia('(max-width: 767px)');
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateHeroVideo = () => {
+      setShouldPlayHeroVideo(!mobileQuery.matches && !motionQuery.matches);
+    };
+    mobileQuery.addEventListener('change', updateHeroVideo);
+    motionQuery.addEventListener('change', updateHeroVideo);
 
     // IntersectionObserver — reveal glassmorphism section when it enters viewport
     const observer = new IntersectionObserver(
@@ -72,7 +80,11 @@ export default function MultiverseEntry() {
       { threshold: 0.08 }
     );
     if (exploreRef.current) observer.observe(exploreRef.current);
-    return () => observer.disconnect();
+    return () => {
+      mobileQuery.removeEventListener('change', updateHeroVideo);
+      motionQuery.removeEventListener('change', updateHeroVideo);
+      observer.disconnect();
+    };
   }, []);
 
   function handleSelect(id) {
@@ -94,16 +106,18 @@ export default function MultiverseEntry() {
         {/* Sticky container so video stays put while explore slides over */}
         <div className="mv2-hero__sticky">
           {/* Video */}
-          <video
-            ref={videoRef}
-            className="mv2-hero__video"
-            src={VIDEO_SRC}
-            autoPlay
-            muted
-            loop
-            playsInline
-            aria-hidden="true"
-          />
+          {shouldPlayHeroVideo && (
+            <video
+              className="mv2-hero__video"
+              src={VIDEO_SRC}
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="none"
+              aria-hidden="true"
+            />
+          )}
 
           {/* Full-screen glassmorphism layer — covers entire video, very low opacity */}
           <div className="mv2-hero__veil" />

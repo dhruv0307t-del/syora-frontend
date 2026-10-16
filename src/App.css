@@ -1878,6 +1878,10 @@
   align-items: center;
   justify-content: center;
   z-index: 1;
+  /* Immediate, image-free first paint while the optional desktop video starts. */
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(153, 127, 91, 0.38), transparent 58%),
+    linear-gradient(135deg, #484234 0%, #29251e 48%, #17130f 100%);
 }
 
 /* Video fills sticky box */
