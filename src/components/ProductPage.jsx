@@ -47,6 +47,36 @@ export default function ProductPage({ handle }) {
     return () => obs.disconnect();
   }, []);
 
+  // Cycle product photos every five seconds on mobile/tablet layouts.
+  // A timeout (rather than a fixed interval) gives each newly selected image
+  // a full five seconds and restarts after manual navigation. The carousel
+  // pauses while the tab is hidden and resumes when it becomes visible.
+  useEffect(() => {
+    const imageCount = product?.images?.length ?? 0;
+    if (imageCount < 2) return;
+
+    const mobileQuery = window.matchMedia('(max-width: 1023px)');
+    let timerId;
+    const scheduleNextImage = () => {
+      window.clearTimeout(timerId);
+      if (!mobileQuery.matches || document.hidden) return;
+
+      timerId = window.setTimeout(() => {
+        setActiveImg((index) => (index + 1) % imageCount);
+      }, 5000);
+    };
+
+    scheduleNextImage();
+    mobileQuery.addEventListener('change', scheduleNextImage);
+    document.addEventListener('visibilitychange', scheduleNextImage);
+
+    return () => {
+      window.clearTimeout(timerId);
+      mobileQuery.removeEventListener('change', scheduleNextImage);
+      document.removeEventListener('visibilitychange', scheduleNextImage);
+    };
+  }, [product?.images?.length, activeImg]);
+
   // Fire view_item analytics event when product loads
   useEffect(() => {
     if (product) trackViewItem(product);

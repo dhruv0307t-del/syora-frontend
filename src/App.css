@@ -2707,7 +2707,7 @@
 /* ── Gallery ── */
 .pdp2-gallery {
   position: relative;
-  background: #f0ebe3;
+  background: #fff;
   width: 100%;
   height: 85vw; /* Almost square on mobile */
   min-height: 320px;
