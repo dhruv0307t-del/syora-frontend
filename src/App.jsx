@@ -1,57 +1,16 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import './index.css';
 import './App.css';
 import './shopify.css';
 import MultiverseEntry from './components/MultiverseEntry';
-import UniversePage from './components/UniversePage';
-import ProductPage from './components/ProductPage';
 import CartDrawer from './components/CartDrawer';
-import OrderConfirmation from './components/OrderConfirmation';
 
-// Legacy homepage components (preserved, accessible via /home)
-import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import StorySection from './components/StorySection';
-import CategorySection from './components/CategorySection';
-import SizeChart from './components/SizeChart';
-import AboutUs from './components/AboutUs';
-import Footer from './components/Footer';
-
-function LegacyHome() {
-  return (
-    <>
-      <Navbar />
-      <main>
-        <Hero />
-        <div className="content-wrapper">
-          <StorySection />
-          <CategorySection />
-
-          {/* Morphism Transition */}
-          <div style={{
-            position: 'relative', height: '40px',
-            marginTop: '-10px', marginBottom: '-10px', zIndex: 10,
-            background: 'linear-gradient(to bottom, transparent 0%, rgba(245,230,210,0.5) 50%, transparent 100%)',
-            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', pointerEvents: 'none',
-          }} />
-
-          <SizeChart />
-
-          <div style={{
-            position: 'relative', height: '40px',
-            marginTop: '-10px', marginBottom: '-10px', zIndex: 10,
-            background: 'linear-gradient(to bottom, transparent 0%, rgba(245,230,210,0.5) 50%, transparent 100%)',
-            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', pointerEvents: 'none',
-          }} />
-
-          <AboutUs />
-          <Footer />
-        </div>
-      </main>
-    </>
-  );
-}
+// Route-level chunks keep product and legacy-shop code out of the homepage load.
+const UniversePage = lazy(() => import('./components/UniversePage'));
+const ProductPage = lazy(() => import('./components/ProductPage'));
+const OrderConfirmation = lazy(() => import('./components/OrderConfirmation'));
+const LegacyHome = lazy(() => import('./components/LegacyHome'));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -69,34 +28,40 @@ function ProductPageWrapper() {
 }
 
 export default function App() {
+  useLayoutEffect(() => {
+    document.getElementById('initial-hero')?.remove();
+  }, []);
+
   return (
     <>
       <CartDrawer />
       <ScrollToTop />
-      <Routes>
-        {/* ── Multiverse Entry ── */}
-        <Route path="/" element={<MultiverseEntry />} />
+      <Suspense fallback={<div className="route-loading" role="status" aria-label="Loading page" />}>
+        <Routes>
+          {/* ── Multiverse Entry ── */}
+          <Route path="/" element={<MultiverseEntry />} />
 
-        {/* ── Five Universe Pages ── */}
-        <Route path="/universe/icon"     element={<UniversePage universe="icon" />} />
-        <Route path="/universe/heritage" element={<UniversePage universe="heritage" />} />
-        <Route path="/universe/everyday" element={<UniversePage universe="everyday" />} />
-        <Route path="/universe/motion"   element={<UniversePage universe="motion" />} />
-        <Route path="/universe/off-duty" element={<UniversePage universe="off-duty" />} />
+          {/* ── Five Universe Pages ── */}
+          <Route path="/universe/icon"     element={<UniversePage universe="icon" />} />
+          <Route path="/universe/heritage" element={<UniversePage universe="heritage" />} />
+          <Route path="/universe/everyday" element={<UniversePage universe="everyday" />} />
+          <Route path="/universe/motion"   element={<UniversePage universe="motion" />} />
+          <Route path="/universe/off-duty" element={<UniversePage universe="off-duty" />} />
 
-        {/* ── Product Detail Pages ── */}
-        <Route path="/product/:handle" element={<ProductPageWrapper />} />
+          {/* ── Product Detail Pages ── */}
+          <Route path="/product/:handle" element={<ProductPageWrapper />} />
 
-        {/* ── Legacy Shop / Home ── */}
-        <Route path="/home" element={<LegacyHome />} />
-        <Route path="/shop" element={<LegacyHome />} />
+          {/* ── Legacy Shop / Home ── */}
+          <Route path="/home" element={<LegacyHome />} />
+          <Route path="/shop" element={<LegacyHome />} />
 
-        {/* ── Order Confirmation (Shopify checkout return) ── */}
-        <Route path="/order-confirmation" element={<OrderConfirmation />} />
+          {/* ── Order Confirmation (Shopify checkout return) ── */}
+          <Route path="/order-confirmation" element={<OrderConfirmation />} />
 
-        {/* ── Fallback ── */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* ── Fallback ── */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </>
   );
 }

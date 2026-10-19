@@ -1848,6 +1848,12 @@
      4. Footer
 ════════════════════════════════════════════════ */
 
+/* ── Lazy route fallback ── */
+.route-loading {
+  min-height: 100vh;
+  background: var(--bg-primary);
+}
+
 /* ── Page wrapper ── */
 .mv2 {
   background: #0e0a08;
@@ -1939,11 +1945,11 @@
   align-items: center;
   gap: 14px;
   text-align: center;
-  /* slide up on load */
-  animation: mv2-rise 1s 0.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* Keep the primary wordmark visible for LCP while retaining a subtle rise. */
+  animation: mv2-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes mv2-rise {
-  from { opacity: 0; transform: translateY(24px); }
+  from { opacity: 1; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
