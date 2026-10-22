@@ -39,6 +39,13 @@ const PRODUCT_CARD_FRAGMENT = `
     featuredImage {
       ...ImageFields
     }
+    images(first: 20) {
+      edges {
+        node {
+          ...ImageFields
+        }
+      }
+    }
     priceRange {
       minVariantPrice {
         ...MoneyFields
@@ -69,6 +76,9 @@ const VARIANT_FRAGMENT = `
     selectedOptions {
       name
       value
+    }
+    image {
+      ...ImageFields
     }
   }
 `;

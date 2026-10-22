@@ -35,10 +35,19 @@ export function ProductCard({ product }) {
         )}
         <img
           src={product.img}
-          alt={product.name}
+          alt={product.imgAlt || product.name}
           className="product-card__img"
           loading="lazy"
         />
+        {product.imgHover && (
+          <img
+            src={product.imgHover}
+            alt={`${product.name} worn on foot`}
+            className="product-card__img product-card__img--hover"
+            loading="lazy"
+            aria-hidden="true"
+          />
+        )}
         <button
           className={`product-card__wish ${wishlisted ? 'active' : ''}`}
           onClick={(e) => { e.stopPropagation(); setWishlisted(!wishlisted); }}

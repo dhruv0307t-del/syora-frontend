@@ -74,6 +74,11 @@ export function getUniverseFromTags(tags = []) {
 export function normaliseProductCard(node) {
   const price       = node.priceRange?.minVariantPrice;
   const compareAt   = node.compareAtPriceRange?.minVariantPrice;
+  const cardImages  = (node.images?.edges || []).map((edge) => edge.node).filter((image) => image?.url);
+  const featuredUrl = node.featuredImage?.url || '';
+  const wearingImage = cardImages.find((image) =>
+    /model|wear(?:ing)?|on.?foot|lifestyle|girl|woman|styled|lookbook/i.test(image.altText || '')
+  ) || [...cardImages].reverse().find((image) => image.url !== featuredUrl);
 
   // Badge logic: use tags `badge:BESTSELLER`, `badge:NEW`, etc.
   const badgeTag = (node.tags || []).find((t) => t.toLowerCase().startsWith('badge:'));
@@ -85,7 +90,8 @@ export function normaliseProductCard(node) {
     shopifyId:       node.id,
     handle:          node.handle,
     // ProductCard renders product.img
-    img:             node.featuredImage?.url || '',
+    img:             featuredUrl,
+    imgHover:        wearingImage?.url || '',
     imgAlt:          node.featuredImage?.altText || node.title,
     name:            node.title,
     // ProductCard renders product.price as a string
@@ -119,8 +125,112 @@ export function normaliseProduct(node) {
 
   const price     = node.priceRange?.minVariantPrice;
   const compareAt = node.compareAtPriceRange?.minVariantPrice;
-  const images    = (node.images?.edges || []).map((e) => e.node.url);
+  const imageNodes = (node.images?.edges || []).map((e) => e.node);
   const variants  = (node.variants?.edges || []).map((e) => e.node);
+  const images = [...new Set([
+    ...imageNodes.map((image) => image.url),
+    ...variants.map((variant) => variant.image?.url),
+    node.featuredImage?.url,
+  ].filter(Boolean))];
+
+  const colourByName = new Map();
+  variants.forEach((variant) => {
+    const option = variant.selectedOptions?.find(({ name }) => /colou?r/i.test(name));
+    if (!option) return;
+    const name = option.value;
+    const normalizedName = name.trim().toLowerCase();
+    const altImage = imageNodes.find(({ altText }) =>
+      altText?.toLowerCase().includes(normalizedName)
+    );
+    const image = variant.image?.url || altImage?.url || null;
+    const imageIndex = image ? images.indexOf(image) : -1;
+    const knownHex = {
+      black: '#1a1a1a', white: '#f5f3ef', nude: '#c9aa91', beige: '#c9b7a4',
+      brown: '#684b3b', tan: '#b88962', red: '#a83232', blue: '#46647e',
+      gold: '#c5a45a', silver: '#b8b8b8', pink: '#d9a2ad', green: '#526b50',
+    };
+    const existingColour = colourByName.get(name);
+    if (!existingColour || (existingColour.imageIndex < 0 && imageIndex >= 0)) {
+      colourByName.set(name, {
+        name,
+        hex: knownHex[normalizedName] || '#d8d1c8',
+        image,
+        imageIndex,
+      });
+    }
+  });
+
+  // Some Shopify catalogs keep each color as a separate run of gallery photos
+  // instead of making color a variant option. Use image alt text when provided.
+  if (colourByName.size === 0) {
+    const knownColours = ['black', 'white', 'nude', 'beige', 'brown', 'tan', 'red', 'blue', 'gold', 'silver', 'pink', 'green'];
+    imageNodes.forEach((image, imageIndex) => {
+      const altText = image.altText || '';
+      const matchedName = knownColours.find((colour) => new RegExp(`\\b${colour}\\b`, 'i').test(altText));
+      if (!matchedName || colourByName.has(matchedName)) return;
+      const knownHex = { black: '#1a1a1a', white: '#f5f3ef', nude: '#c9aa91', beige: '#c9b7a4', brown: '#684b3b', tan: '#b88962', red: '#a83232', blue: '#46647e', gold: '#c5a45a', silver: '#b8b8b8', pink: '#d9a2ad', green: '#526b50' };
+      colourByName.set(matchedName, { name: matchedName[0].toUpperCase() + matchedName.slice(1), hex: knownHex[matchedName], image: image.url, imageIndex });
+    });
+  }
+
+  // This product's listing has no color option or image alt labels. Its first
+  // black image is followed by the nude color set at gallery image seven.
+  if (colourByName.size === 0 && node.handle === 'black-pumps' && images.length > 6) {
+    colourByName.set('Black', { name: 'Black', hex: '#1a1a1a', image: images[0], imageIndex: 0 });
+    colourByName.set('Nude', { name: 'Nude', hex: '#c9aa91', image: images[6], imageIndex: 6 });
+  }
+  if (colourByName.size === 0 && node.handle === 'glitter-flat' && images.length > 6) {
+    colourByName.set('Black', { name: 'Black', hex: '#1a1a1a', image: images[0], imageIndex: 0 });
+    colourByName.set('Burgundy', { name: 'Burgundy', hex: '#641f35', image: images[6], imageIndex: 6 });
+  }
+  if (colourByName.size === 0 && node.handle === 'tip-dip' && images.length > 7) {
+    colourByName.set('Nude', { name: 'Nude', hex: '#c9aa91', image: images[0], imageIndex: 0 });
+    colourByName.set('Black', { name: 'Black', hex: '#1a1a1a', image: images[7], imageIndex: 7 });
+  }
+  if (colourByName.size === 0 && node.handle === 'kitten-heels' && images.length >= 15) {
+    colourByName.set('Nude', { name: 'Nude', hex: '#c9aa91', image: images[0], imageIndex: 0 });
+    colourByName.set('Burgundy', { name: 'Burgundy', hex: '#641f35', image: images[4], imageIndex: 4 });
+    colourByName.set('Black', { name: 'Black', hex: '#1a1a1a', image: images[7], imageIndex: 7 });
+  }
+
+  const orderedColours = [...colourByName.values()]
+    .filter((colour) => colour.imageIndex >= 0)
+    .sort((a, b) => a.imageIndex - b.imageIndex);
+  orderedColours.forEach((colour, colourIndex) => {
+    const normalizedName = colour.name.trim().toLowerCase();
+    const matchingAltIndices = imageNodes.flatMap((image, index) =>
+      image.altText?.toLowerCase().includes(normalizedName) ? [images.indexOf(image.url)] : []
+    ).filter((index) => index >= 0);
+    if (matchingAltIndices.length) {
+      colour.galleryIndices = [...new Set(matchingAltIndices)];
+      return;
+    }
+
+    if (node.handle === 'black-pumps' || node.handle === 'glitter-flat' || node.handle === 'tip-dip') {
+      const splitIndex = node.handle === 'tip-dip' ? 7 : 6;
+      colour.galleryIndices = colour.imageIndex < splitIndex
+        ? images.map((_, index) => index).filter((index) => index < splitIndex)
+        : images.map((_, index) => index).filter((index) => index >= splitIndex);
+      return;
+    }
+
+    if (node.handle === 'kitten-heels') {
+      const indicesByColour = {
+        nude: [0, 1, 2, 3],
+        burgundy: [4, 5, 6, 9, 11],
+        black: [7, 8, 10, 12, 13, 14],
+      };
+      colour.galleryIndices = (indicesByColour[normalizedName] || [])
+        .filter((index) => index < images.length);
+      return;
+    }
+
+    const nextColourImage = orderedColours.slice(colourIndex + 1)
+      .find((next) => next.imageIndex > colour.imageIndex)?.imageIndex ?? images.length;
+    colour.galleryIndices = images
+      .map((_, index) => index)
+      .filter((index) => index >= colour.imageIndex && index < nextColourImage);
+  });
 
   // Shopify option labels vary (for example "Size" and "Shoe size").
   const isSizeOption = (name = '') => name.toLowerCase().includes('size');
@@ -151,6 +261,9 @@ export function normaliseProduct(node) {
   const universeId = getUniverseFromTags(node.tags);
 
   const discountPercent = computeDiscountPercent(price, compareAt);
+  const materialTag = (node.tags || []).find((tag) => tag.toLowerCase().startsWith('material:'));
+  const rawDescription = typeof node.description === 'string' ? node.description.trim() : '';
+  const description = /^(n\/?a|not available|—|-)?$/i.test(rawDescription) ? '' : rawDescription;
 
   return {
     /* Shopify identifiers */
@@ -175,7 +288,7 @@ export function normaliseProduct(node) {
     stockPerSize,
 
     /* Description */
-    description:     node.description,
+    description,
     descriptionHtml: node.descriptionHtml,
 
     /* Badge & universe */
@@ -183,26 +296,28 @@ export function normaliseProduct(node) {
     universeId,
 
     /* Fields with Shopify-native values where available, else sensible defaults */
-    colours: [],                   // Populated via metafields later
+    colours: [...colourByName.values()],
     videos:  [],
 
     /* Comfort profile — defaults; override via metafields */
     heelHeight:    node.tags?.find((t) => t.startsWith('heel:'))?.split(':')[1] || '—',
     closureType:   '—',
     soleType:      '—',
-    material:      node.vendor || '—',
+    material:      materialTag ? materialTag.split(':').slice(1).join(':').trim() : '',
+    vendor:        node.vendor || '',
     comfortProfile: { cushioning: '—', stability: '—', bestForHours: '—' },
 
     /* Defaults for editorial sections */
     fitNote:         '',
-    oneLineHook:     node.description || '',
+    // Product descriptions belong beneath the gallery, not in the editorial hook section.
+    oneLineHook:     '',
     benefits:        [],
     bestForOccasion: '',
     stylingNote:     '',
     offerBanner:     null,
 
     /* Delivery / returns — adjust per your store policy */
-    deliveryDaysEstimate: '3–5 business days',
+    deliveryDaysEstimate: '5–7 business days',
     returnWindowDays:     7,
     exchangeWindowDays:   15,
     codAvailable:         true,
@@ -215,16 +330,7 @@ export function normaliseProduct(node) {
 
     /* FAQ & accordion — these are editorial and can be sourced from metafields */
     productSpecificQuestions: [],
-    accordion: [
-      {
-        title:   'SHIPPING & RETURNS',
-        content: 'Free shipping on orders above ₹999. 7-day exchange on size issues, no questions asked.',
-      },
-      {
-        title:   'FIT & SIZE',
-        content: 'Refer to the size guide for foot-length measurements.',
-      },
-    ],
+    accordion: [],
 
     relatedProducts: [],
     completeTheLook: [],

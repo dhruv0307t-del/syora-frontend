@@ -29,11 +29,13 @@ export default function ProductPage({ handle }) {
   const [pinResult, setPinResult]         = useState(null);
   const [pinLoading, setPinLoading]       = useState(false);
   const [openAccordion, setAccordion]     = useState(null);
+  const [openProductPanel, setProductPanel] = useState(null);
+  const [shareFeedback, setShareFeedback] = useState('');
   const [openFaq, setOpenFaq]             = useState(null);
-  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [stickyVisible, setStickyVisible] = useState(false);
 
   const heroRef     = useRef(null);
+  const sizeGuideRef = useRef(null);
   const touchStartX = useRef(null);
 
   useEffect(() => {
@@ -47,13 +49,18 @@ export default function ProductPage({ handle }) {
     return () => obs.disconnect();
   }, []);
 
+  useEffect(() => {
+    setColour(0);
+    setActiveImg(product?.colours?.[0]?.galleryIndices?.[0] ?? product?.colours?.[0]?.imageIndex ?? 0);
+  }, [product?.handle]);
+
   // Cycle product photos every five seconds on mobile/tablet layouts.
   // A timeout (rather than a fixed interval) gives each newly selected image
   // a full five seconds and restarts after manual navigation. The carousel
   // pauses while the tab is hidden and resumes when it becomes visible.
   useEffect(() => {
     const imageCount = product?.images?.length ?? 0;
-    if (imageCount < 2) return;
+    if (imageCount < 2 || product?.colours?.length > 1) return;
 
     const mobileQuery = window.matchMedia('(max-width: 1023px)');
     let timerId;
@@ -75,7 +82,7 @@ export default function ProductPage({ handle }) {
       mobileQuery.removeEventListener('change', scheduleNextImage);
       document.removeEventListener('visibilitychange', scheduleNextImage);
     };
-  }, [product?.images?.length, activeImg]);
+  }, [product?.images?.length, product?.colours?.length, activeImg]);
 
   // Fire view_item analytics event when product loads
   useEffect(() => {
@@ -89,6 +96,21 @@ export default function ProductPage({ handle }) {
     if (product?.variantMap?.[size]) {
       setVariantId(product.variantMap[size].id);
     }
+  }
+
+  function handleColourSelect(index) {
+    setColour(index);
+    const colour = product?.colours?.[index];
+    const imageIndex = colour?.galleryIndices?.[0] ?? colour?.imageIndex;
+    if (Number.isInteger(imageIndex) && imageIndex >= 0) setActiveImg(imageIndex);
+  }
+
+  function getColourGalleryIndices(index = selectedColour) {
+    if (!product?.images?.length) return [];
+    const colour = product.colours?.[index];
+    if (colour?.galleryIndices?.length) return colour.galleryIndices;
+    if (Number.isInteger(colour?.imageIndex) && colour.imageIndex >= 0) return [colour.imageIndex];
+    return product.images.map((_, imageIndex) => imageIndex);
   }
 
   // Loading state
@@ -126,6 +148,15 @@ export default function ProductPage({ handle }) {
     );
   }
 
+  const galleryImageIndices = getColourGalleryIndices();
+  function moveGalleryImage(direction) {
+    setActiveImg((current) => {
+      const currentPosition = galleryImageIndices.indexOf(current);
+      const start = currentPosition < 0 ? 0 : currentPosition;
+      return galleryImageIndices[(start + direction + galleryImageIndices.length) % galleryImageIndices.length];
+    });
+  }
+
   async function handleAddToCart() {
     if (!selectedVariantId) { setSizeError(true); setTimeout(() => setSizeError(false), 2200); return; }
     const result = await addToCart(selectedVariantId, 1);
@@ -160,15 +191,33 @@ export default function ProductPage({ handle }) {
     }, 900);
   }
 
+  async function handleShareProduct() {
+    const shareData = { title: product.name, url: window.location.href };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareData.url);
+        setShareFeedback('Link copied');
+        window.setTimeout(() => setShareFeedback(''), 2000);
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') setShareFeedback('Unable to share');
+    }
+  }
+
   function onTouchStart(e) { touchStartX.current = e.touches[0].clientX; }
   function onTouchEnd(e) {
     if (touchStartX.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     if (Math.abs(dx) > 50) {
-      setActiveImg(i => dx < 0
-        ? (i + 1) % product.images.length
-        : (i - 1 + product.images.length) % product.images.length
-      );
+      const galleryIndices = getColourGalleryIndices();
+      setActiveImg((current) => {
+        const currentPosition = galleryIndices.indexOf(current);
+        const start = currentPosition < 0 ? 0 : currentPosition;
+        const direction = dx < 0 ? 1 : -1;
+        return galleryIndices[(start + direction + galleryIndices.length) % galleryIndices.length];
+      });
     }
     touchStartX.current = null;
   }
@@ -176,9 +225,102 @@ export default function ProductPage({ handle }) {
   // Related products — not yet populated from Shopify; will be empty initially
   const related = [];
 
-  const reviewCount   = product.reviewCount || 0;
+  // The user supplied the current Glitter Flat review summary for the PDP.
+  const reviewCount   = handle === 'glitter-flat' ? 5 : (product.reviewCount || 0);
+  const displayRating = handle === 'glitter-flat' ? 4.2 : product.rating;
   const isNewArrival  = reviewCount === 0;
   const hasFewReviews = reviewCount > 0 && reviewCount < 10;
+  const hasRating = Number.isFinite(Number(displayRating)) && Number(displayRating) > 0 && reviewCount > 0;
+  const realReviews = Array.isArray(product.reviews) ? product.reviews : [];
+  const demoReviews = [
+    { id: 'demo-1', author: 'Demo review 01', date: 'SAMPLE', rating: 5, text: 'A beautiful finishing touch for a festive outfit. The look feels polished without being overdone.' },
+    { id: 'demo-2', author: 'Demo review 02', date: 'SAMPLE', rating: 4, text: 'The detailed design adds a little sparkle and makes simple occasionwear feel special.' },
+    { id: 'demo-3', author: 'Demo review 03', date: 'SAMPLE', rating: 4, text: 'An elegant style for celebrations and evening plans.' },
+    { id: 'demo-4', author: 'Demo review 04', date: 'SAMPLE', rating: 4, text: 'The embellishment catches the light nicely and pairs well with traditional looks.' },
+    { id: 'demo-5', author: 'Demo review 05', date: 'SAMPLE', rating: 4, text: 'A graceful statement piece that brings a little extra polish to the outfit.' },
+  ];
+  const isDemoReviews = handle === 'glitter-flat' && realReviews.length === 0;
+  const reviewList = realReviews.length ? realReviews : (isDemoReviews ? demoReviews : []);
+  const categoryText = `${handle} ${product.title || ''} ${product.category || ''}`.toLowerCase();
+  const stylingUniverse = /boot/.test(categoryText)
+    ? 'boots'
+    : /crocs?|clog|slide/.test(categoryText)
+      ? 'off-duty'
+      : /sneaker|trainer/.test(categoryText)
+        ? 'motion'
+        : /jutt|mojari/.test(categoryText)
+          ? 'heritage'
+          : /heel|pump|stiletto/.test(categoryText)
+            ? 'icon'
+            : /flat|loafer/.test(categoryText)
+              ? 'everyday'
+              : product.universeId || 'everyday';
+  const footwearLabel = {
+    icon: 'heels', heritage: 'juttis', everyday: 'flats and loafers', motion: 'sneakers',
+    'off-duty': 'clogs, slides and Crocs-style comfort shoes', boots: 'boots',
+  }[stylingUniverse] || 'flats';
+  const stylingLooks = {
+    icon: [
+      { image: 'lehenga-style.png', title: 'Lehenga', note: 'A polished finishing touch for festive evenings.' },
+      { image: 'saree-style.png', title: 'Saree', note: 'An elegant pairing for celebrations and occasions.' },
+      { image: 'anarkali-style.png', title: 'Anarkali', note: 'A graceful look for dressed-up moments.' },
+    ],
+    heritage: [
+      { image: 'lehenga-style.png', title: 'Lehenga', note: 'Traditional craft meets a festive silhouette.' },
+      { image: 'saree-style.png', title: 'Saree', note: 'A considered pairing for zari and mirror details.' },
+      { image: 'anarkali-style.png', title: 'Anarkali', note: 'A graceful choice for daytime celebrations.' },
+    ],
+    everyday: [
+      { image: 'workwear-flats.png', title: 'Workwear', note: 'A refined finish for office days and plans after.' },
+      { image: 'saree-style.png', title: 'Saree', note: 'An easy way to dress up a simple occasion look.' },
+      { image: 'anarkali-style.png', title: 'Anarkali', note: 'A comfortable, polished pairing for celebrations.' },
+    ],
+    motion: [
+      { image: 'denim-sneakers.png', title: 'Denim', note: 'An easy match for everyday city plans.' },
+      { image: 'workwear-flats.png', title: 'Smart casual', note: 'Keep weekday dressing comfortable and composed.' },
+      { image: 'relaxed-clogs.png', title: 'Relaxed layers', note: 'A laid-back look for slower days.' },
+    ],
+    'off-duty': [
+      { image: 'relaxed-clogs.png', title: 'Relaxed layers', note: 'An easy fit for off-duty comfort.' },
+      { image: 'denim-sneakers.png', title: 'Denim', note: 'Casual layers for errands and weekends.' },
+      { image: 'workwear-flats.png', title: 'Smart casual', note: 'A relaxed look that still feels put together.' },
+    ],
+    boots: [
+      { image: 'workwear-flats.png', title: 'Tailored layers', note: 'Clean lines bring balance to a strong boot.' },
+      { image: 'denim-sneakers.png', title: 'Denim', note: 'A versatile pairing for everyday wear.' },
+      { image: 'lehenga-style.png', title: 'Festive', note: 'A modern contrast for statement dressing.' },
+    ],
+  }[stylingUniverse] || [];
+  const policyPanels = [
+    {
+      title: 'SHIPPING & EXCHANGE',
+      content: (
+        <>
+          <p>We ship across India to serviceable PIN codes. Estimated delivery is 5–7 business days.</p>
+          <p>Cash on Delivery is available across India wherever the PIN code and courier are serviceable.</p>
+          <p>For a size or colour exchange, contact SYORA within 48 hours of delivery. Items must be unworn and returned with their original packaging and tags. Exchanges are subject to availability.</p>
+          <p>If your order arrives damaged or you receive the wrong item, please contact us within 48 hours with your order number and clear photos. We will arrange an appropriate resolution. No change-of-mind returns are offered; this does not limit remedies required by applicable consumer law.</p>
+        </>
+      ),
+    },
+    {
+      title: 'COMPOSITION & CARE',
+      content: (
+        <>
+          <p><strong>Composition:</strong> {product.material || 'Material details are not provided in the current product listing. Please refer to the product label or contact SYORA support.'}</p>
+          <p><strong>Care:</strong> Wipe gently with a soft, dry cloth. Keep away from prolonged moisture, direct heat, and harsh chemicals. Store in a cool, dry place.</p>
+        </>
+      ),
+    },
+    {
+      title: 'BRAND DETAILS',
+      content: (
+        <>
+          <p><strong>Brand:</strong> {product.vendor || 'SYORA'}</p>
+        </>
+      ),
+    },
+  ];
 
   /* CTA label */
   const isProcessing = cartLoading;
@@ -240,21 +382,29 @@ export default function ProductPage({ handle }) {
               <span className="pdp2-info__new-arrival">✦ New Arrival</span>
             ) : (
               <>
-                <span className="pdp2-info__rating-num">{product.rating}</span>
-                <div className="pdp2-stars" aria-label={`${product.rating} out of 5 stars`}>
+                <span className="pdp2-info__rating-num">{Number(displayRating).toFixed(1)}</span>
+                <div className="pdp2-stars" aria-label={`${displayRating} out of 5 stars`}>
                   {[1,2,3,4,5].map(s => {
-                    const filled = s <= Math.floor(product.rating);
-                    const half   = !filled && s <= product.rating + 0.5;
-                    return (
-                      <span key={s} className={`pdp2-star ${filled ? 'pdp2-star--filled' : half ? 'pdp2-star--half' : ''}`}>★</span>
-                    );
+                    const fill = Math.max(0, Math.min(1, Number(displayRating) - s + 1));
+                    return <span
+                      key={s}
+                      className={`pdp2-star ${fill === 1 ? 'pdp2-star--filled' : fill > 0 ? 'pdp2-star--half' : ''}`}
+                      style={hasRating ? {
+                        background: `linear-gradient(90deg, #1a1412 ${fill * 100}%, #bdbdbd ${fill * 100}%)`,
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                      } : undefined}
+                    >★</span>;
                   })}
                 </div>
                 <button
                   className="pdp2-info__rating-link"
-                  onClick={() => document.getElementById('pdp2-reviews')?.scrollIntoView({ behavior: 'smooth' })}
+                  onClick={() => {
+                    setProductPanel('reviews');
+                    document.getElementById('pdp2-product-reviews')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
                 >
-                  ({hasFewReviews ? product.reviewCount : product.reviewCount})
+                  ({reviewCount})
                 </button>
               </>
             )}
@@ -310,14 +460,14 @@ export default function ProductPage({ handle }) {
             />
             <button
               className="pdp2-gallery__arrow pdp2-gallery__arrow--prev"
-              onClick={() => setActiveImg(i => (i - 1 + product.images.length) % product.images.length)}
+              onClick={() => moveGalleryImage(-1)}
               aria-label="Previous image"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
             <button
               className="pdp2-gallery__arrow pdp2-gallery__arrow--next"
-              onClick={() => setActiveImg(i => (i + 1) % product.images.length)}
+              onClick={() => moveGalleryImage(1)}
               aria-label="Next image"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 18l6-6-6-6"/></svg>
@@ -326,30 +476,57 @@ export default function ProductPage({ handle }) {
 
           {/* Thumbnail strip */}
           <div className="pdp2-gallery__thumbs pdp2-desktop-only" role="list" aria-label="Product images">
-            {product.images.map((img, i) => (
+            {galleryImageIndices.map((imageIndex, i) => (
               <button
-                key={i}
-                className={`pdp2-gallery__thumb ${i === activeImg ? 'pdp2-gallery__thumb--active' : ''}`}
-                onClick={() => setActiveImg(i)}
+                key={imageIndex}
+                className={`pdp2-gallery__thumb ${imageIndex === activeImg ? 'pdp2-gallery__thumb--active' : ''}`}
+                onClick={() => setActiveImg(imageIndex)}
                 aria-label={`View image ${i + 1}`}
                 role="listitem"
               >
-                <img src={img} alt={`Thumbnail ${i + 1}`} />
+                <img src={product.images[imageIndex]} alt={`Thumbnail ${i + 1}`} />
               </button>
             ))}
           </div>
 
           {/* Dot nav — mobile */}
           <div className="pdp2-gallery__dots" aria-hidden="true">
-            {product.images.map((_, i) => (
+            {galleryImageIndices.map((imageIndex, i) => (
               <button
-                key={i}
-                className={`pdp2-gallery__dot ${i === activeImg ? 'pdp2-gallery__dot--active' : ''}`}
-                onClick={() => setActiveImg(i)}
+                key={imageIndex}
+                className={`pdp2-gallery__dot ${imageIndex === activeImg ? 'pdp2-gallery__dot--active' : ''}`}
+                onClick={() => setActiveImg(imageIndex)}
               />
             ))}
           </div>
         </div>
+
+        <section className="pdp2-description" aria-label="Product description">
+          <p className="pdp2-description__eyebrow">PRODUCT DESCRIPTION</p>
+          <p className="pdp2-description__text">{product.description || 'Product description will be available soon.'}</p>
+        </section>
+
+        {product.colours?.length > 0 && (
+          <div className="pdp2-mobile-colours pdp2-mobile-only">
+            <p className="pdp2-mobile-colours__label">Colours</p>
+            <div className="pdp2-mobile-colours__grid">
+              {product.colours.map((colour, index) => (
+                <button
+                  key={colour.name}
+                  className={`pdp2-mobile-colour-thumb ${index === selectedColour ? 'pdp2-mobile-colour-thumb--active' : ''}`}
+                  onClick={() => handleColourSelect(index)}
+                  aria-label={`Select colour: ${colour.name}`}
+                  aria-pressed={index === selectedColour}
+                >
+                  {colour.image
+                    ? <img className="pdp2-colour-image" src={colour.image} alt="" />
+                    : <span className="pdp2-mobile-colour-thumb__swatch" style={{ background: colour.hex }} />}
+                  <span className="pdp2-mobile-colour-thumb__name">{colour.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Info panel BOTTOM (renders THIRD = below gallery on mobile) ── */}
         <div className="pdp2-info-bottom pdp2-info">
@@ -360,7 +537,7 @@ export default function ProductPage({ handle }) {
 
           {/* ── Colour picker ── */}
           {product.colours && product.colours.length >= 1 && (
-            <div className="pdp2-info__field">
+            <div className="pdp2-info__field pdp2-desktop-colours">
               <p className="pdp2-info__label pdp2-info__label--bold">
                 Colours
               </p>
@@ -369,12 +546,16 @@ export default function ProductPage({ handle }) {
                   <button
                     key={i}
                     className={`pdp2-swatch ${i === selectedColour ? 'pdp2-swatch--active' : ''}`}
-                    style={{ background: c.hex }}
-                    onClick={() => setColour(i)}
+                    onClick={() => handleColourSelect(i)}
                     title={c.name}
                     aria-label={`Select colour: ${c.name}`}
                     aria-pressed={i === selectedColour}
-                  />
+                  >
+                    {c.image
+                      ? <img className="pdp2-colour-image" src={c.image} alt="" />
+                      : <span className="pdp2-colour-swatch__fill" style={{ background: c.hex }} />}
+                    <span className="pdp2-swatch__name">{c.name}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -386,8 +567,9 @@ export default function ProductPage({ handle }) {
               <p className="pdp2-info__label pdp2-info__label--bold">Sizes</p>
               <button
                 className="pdp2-size__guide-link"
-                onClick={() => setSizeGuideOpen(v => !v)}
+                onClick={() => sizeGuideRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 aria-label="Open size guide"
+                aria-controls="pdp2-size-guidance"
               >
                 Size guide
               </button>
@@ -446,6 +628,209 @@ export default function ProductPage({ handle }) {
             </button>
           </div>
 
+          <div className="pdp2-product-panels" aria-label="Product information and policies">
+            {policyPanels.map((panel, index) => (
+              <div key={panel.title} className="pdp2-accordion__item">
+                <button
+                  className="pdp2-accordion__trigger"
+                  onClick={() => setProductPanel(openProductPanel === index ? null : index)}
+                  aria-expanded={openProductPanel === index}
+                >
+                  <span>{panel.title}</span>
+                  <span className="pdp2-accordion__icon">{openProductPanel === index ? '−' : '+'}</span>
+                </button>
+                <div className={`pdp2-accordion__body ${openProductPanel === index ? 'pdp2-accordion__body--open' : ''}`}>
+                  <div className="pdp2-product-panel__content">{panel.content}</div>
+                </div>
+              </div>
+            ))}
+
+            {handle === 'glitter-flat' && (
+              <section className="pdp2-feature-stories" aria-labelledby="pdp2-feature-stories-title">
+                <h2 id="pdp2-feature-stories-title">A closer look</h2>
+                <div className="pdp2-feature-stories__grid">
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src="/images/product-details/glitter-flat-cushion.jpg"
+                        alt="Close-up of the red footbed and black strap on the shoe"
+                        width="962"
+                        height="1200"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>01</span>
+                      <h3>Footbed feel</h3>
+                      <p>A closer view of the footbed, framed by the glossy strap.</p>
+                    </div>
+                  </article>
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src="/images/product-details/glitter-flat-texture.jpg"
+                        alt="Macro detail of the glossy black upper and stitched edge"
+                        width="962"
+                        height="1200"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>02</span>
+                      <h3>Finish &amp; stitching</h3>
+                      <p>The smooth patent finish and fine edge detail up close.</p>
+                    </div>
+                  </article>
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src="/images/product-details/glitter-flat-heel.jpg"
+                        alt="Side close-up showing the shoe's broad low block heel"
+                        width="962"
+                        height="1200"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>03</span>
+                      <h3>Heel height &amp; base</h3>
+                      <p>A side view of the low block heel and its broad base.</p>
+                    </div>
+                  </article>
+                </div>
+              </section>
+            )}
+
+            {handle === 'glitter-flat' && (
+              <section
+                id="pdp2-size-guidance"
+                ref={sizeGuideRef}
+                className="pdp2-size-guidance"
+                aria-labelledby="pdp2-size-guidance-title"
+              >
+                <div className="pdp2-size-guidance__tabbar">
+                  <h2 id="pdp2-size-guidance-title">WOMEN</h2>
+                </div>
+                <div className="pdp2-size-guidance__table-wrap">
+                  <table className="pdp2-size-guidance__table">
+                    <thead>
+                      <tr><th scope="col">EU/IND</th><th scope="col">UK</th><th scope="col">US</th><th scope="col">CM</th></tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        [35, 2, 5, '22.5'],
+                        [36, 3, 6, '23'],
+                        [37, 4, 7, '24'],
+                        [38, 5, 8, '24.5'],
+                        [39, 6, 9, '25'],
+                        [40, 7, 10, '25.5'],
+                        [41, 8, 11, '26'],
+                        [42, 9, 12, '26.5'],
+                      ].map(([eu, uk, us, cm]) => (
+                        <tr key={eu}><td>{eu}</td><td>{uk}</td><td>{us}</td><td>{cm}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="pdp2-size-guidance__note">
+                  <strong>Foot Length:</strong> Measure from the tip of your longest toe to the back of your heel.
+                </p>
+                <img
+                  className="pdp2-size-guidance__illustration"
+                  src="/images/product-details/foot-measurement-guide.png"
+                  alt="Foot measurement guide showing side and sole views"
+                  width="560"
+                  height="576"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </section>
+            )}
+
+            {stylingLooks.length > 0 && (
+              <section className="pdp2-styling" aria-labelledby="pdp2-styling-title">
+                <p className="pdp2-styling__eyebrow">STYLING</p>
+                <h2 id="pdp2-styling-title">Pairs beautifully with {footwearLabel}</h2>
+                <div className="pdp2-styling__grid">
+                  {stylingLooks.map((look, index) => (
+                    <article className="pdp2-styling-card" key={look.image}>
+                      <img
+                        src={`/images/styling/${look.image}`}
+                        alt={`${look.title} outfit styling illustration`}
+                        width="600"
+                        height="750"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <div className="pdp2-styling-card__copy">
+                        <span>{String(index + 1).padStart(2, '0')}</span>
+                        <h3>{look.title}</h3>
+                        <p>{look.note}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <div className="pdp2-product-social">
+              <button className="pdp2-product-share" onClick={handleShareProduct}>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.4M8.7 13.3l6.6 4.4"/></svg>
+                {shareFeedback || 'SHARE'}
+              </button>
+              <button
+                className="pdp2-product-rating"
+                onClick={() => setProductPanel(openProductPanel === 'reviews' ? null : 'reviews')}
+                aria-expanded={openProductPanel === 'reviews'}
+                aria-controls="pdp2-product-reviews"
+              >
+                <span className="pdp2-product-rating__stars" aria-label={hasRating ? `${displayRating} out of 5 stars` : 'No rating yet'}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={hasRating ? 'is-filled' : ''}
+                      style={hasRating ? {
+                        background: `linear-gradient(90deg, #59654d ${Math.max(0, Math.min(1, Number(displayRating) - star + 1)) * 100}%, #bdbdbd ${Math.max(0, Math.min(1, Number(displayRating) - star + 1)) * 100}%)`,
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                      } : undefined}
+                    >★</span>
+                  ))}
+                </span>
+                <span>{hasRating ? `${reviewCount} reviews | ${Number(displayRating).toFixed(1)}` : `${reviewCount} reviews`}</span>
+              </button>
+            </div>
+            <div
+              id="pdp2-product-reviews"
+              className={`pdp2-accordion__body ${openProductPanel === 'reviews' ? 'pdp2-accordion__body--open' : ''}`}
+            >
+              <div className="pdp2-product-panel__content">
+                {isDemoReviews && (
+                  <p className="pdp2-review-demo-note">
+                    Demo reviews with sample copy and ratings. Replace with verified customer feedback before publishing.
+                  </p>
+                )}
+                {reviewList.length ? reviewList.map((review) => (
+                  <article key={review.id} className="pdp2-review-card">
+                    <div className="pdp2-review-card__header">
+                      <span className="pdp2-review-card__author">{review.author}</span>
+                      <span className="pdp2-review-card__date">{review.date}</span>
+                    </div>
+                    {isDemoReviews && (
+                      <div className="pdp2-review-card__stars" aria-label={`${review.rating} out of 5 stars`}>
+                        {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                      </div>
+                    )}
+                    <p className="pdp2-review-card__text">{review.text}</p>
+                  </article>
+                )) : <p>{reviewCount ? 'Review details are not available yet.' : 'No reviews yet. Be the first to share your experience.'}</p>}
+              </div>
+            </div>
+          </div>
+
           {/* Desktop: Add to Cart */}
           <button
             id={`pdp2-add-cart-${handle}`}
@@ -489,112 +874,29 @@ export default function ProductPage({ handle }) {
             )}
           </div>
 
-          {/* ── Trust: mobile list / desktop micro strip ── */}
-          <div className="pdp2-trust-list">
-            <a className="pdp2-trust-list__item" href="#returns">
-              <span className="pdp2-trust-list__icon">📦</span>
-              <span className="pdp2-trust-list__text">Free Delivery, Free Returns*</span>
-              <span className="pdp2-trust-list__chevron">›</span>
-            </a>
-            <a className="pdp2-trust-list__item" href="#delivery">
-              <span className="pdp2-trust-list__icon">🚚</span>
-              <span className="pdp2-trust-list__text">Delivery in {product.deliveryDaysEstimate}</span>
-              <span className="pdp2-trust-list__chevron">›</span>
-            </a>
-            {product.codAvailable && (
-              <a className="pdp2-trust-list__item" href="#cod">
-                <span className="pdp2-trust-list__icon">💵</span>
-                <span className="pdp2-trust-list__text">Cash on Delivery available</span>
-                <span className="pdp2-trust-list__chevron">›</span>
-              </a>
-            )}
-            <a className="pdp2-trust-list__item" href="#exchange">
-              <span className="pdp2-trust-list__icon">🔄</span>
-              <span className="pdp2-trust-list__text">
-                Hassle-free {product.exchangeWindowDays}-day Exchange &amp; Returns*
-              </span>
-              <span className="pdp2-trust-list__chevron">›</span>
-            </a>
-          </div>
-
-          {/* Desktop-only features block */}
-          <div className="pdp2-desktop-only" style={{ marginTop: 4 }}>
-            <div className="pdp2-info__divider" />
-            <div className="pdp2-micro-trust">
-              <span>🔄 {product.exchangeWindowDays}-day exchange on size issues</span>
-              <span>·</span>
-              <span>🚚 Free shipping above ₹999</span>
-            </div>
-          </div>
         </div>
 
       </section>
-
-      {/* ═══════════ MOBILE COLOUR THUMBNAILS (below gallery) ═══════════ */}
-      {product.colours && product.colours.length >= 1 && (
-        <div className="pdp2-mobile-colours pdp2-mobile-only">
-          <p className="pdp2-mobile-colours__label">Colours</p>
-          <div className="pdp2-mobile-colours__grid">
-            {product.colours.map((c, i) => (
-              <button
-                key={i}
-                className={`pdp2-mobile-colour-thumb ${i === selectedColour ? 'pdp2-mobile-colour-thumb--active' : ''}`}
-                onClick={() => setColour(i)}
-                aria-label={`Select colour: ${c.name}`}
-                aria-pressed={i === selectedColour}
-              >
-                <div className="pdp2-mobile-colour-thumb__swatch" style={{ background: c.hex }} />
-                <span className="pdp2-mobile-colour-thumb__name">{c.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ═══════════ WHY YOU'LL LOVE IT ═══════════ */}
-      <section className="pdp2-benefits" aria-label="Why you'll love it">
-        <div className="pdp2-benefits__inner">
-          <p className="pdp2-section-eyebrow">WHY YOU'LL LOVE IT</p>
-          <h2 className="pdp2-section-heading">{product.oneLineHook}</h2>
-          <div className="pdp2-benefits__grid">
-            {product.benefits.map((b, i) => (
-              <div key={i} className="pdp2-benefit-card">
-                <span className="pdp2-benefit-card__icon">{b.icon}</span>
-                <p className="pdp2-benefit-card__text">{b.text}</p>
+      {(product.oneLineHook || product.benefits?.length > 0) && (
+        <section className="pdp2-benefits" aria-label="Why you'll love it">
+          <div className="pdp2-benefits__inner">
+            <p className="pdp2-section-eyebrow">WHY YOU'LL LOVE IT</p>
+            {product.oneLineHook && <h2 className="pdp2-section-heading">{product.oneLineHook}</h2>}
+            {product.benefits?.length > 0 && (
+              <div className="pdp2-benefits__grid">
+                {product.benefits.map((b, i) => (
+                  <div key={i} className="pdp2-benefit-card">
+                    <span className="pdp2-benefit-card__icon">{b.icon}</span>
+                    <p className="pdp2-benefit-card__text">{b.text}</p>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      </section>
-
-      {/* ═══════════ COMFORT PROFILE ═══════════ */}
-      <section className="pdp2-comfort" aria-label="Comfort profile">
-        <div className="pdp2-comfort__inner">
-          <p className="pdp2-section-eyebrow">COMFORT PROFILE</p>
-          <div className="pdp2-comfort__grid">
-            <div className="pdp2-comfort__item">
-              <span className="pdp2-comfort__icon">👠</span>
-              <span className="pdp2-comfort__label">Heel Height</span>
-              <strong className="pdp2-comfort__value">{product.heelHeight}</strong>
-            </div>
-            <div className="pdp2-comfort__item">
-              <span className="pdp2-comfort__icon">☁️</span>
-              <span className="pdp2-comfort__label">Cushioning</span>
-              <strong className="pdp2-comfort__value">{product.comfortProfile.cushioning}</strong>
-            </div>
-            <div className="pdp2-comfort__item">
-              <span className="pdp2-comfort__icon">⚖️</span>
-              <span className="pdp2-comfort__label">Stability</span>
-              <strong className="pdp2-comfort__value">{product.comfortProfile.stability}</strong>
-            </div>
-            <div className="pdp2-comfort__item">
-              <span className="pdp2-comfort__icon">⏱</span>
-              <span className="pdp2-comfort__label">Best For</span>
-              <strong className="pdp2-comfort__value">{product.comfortProfile.bestForHours}</strong>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ═══════════ PRODUCT DETAILS ═══════════ */}
       <section className="pdp2-details" aria-label="Product details">
@@ -627,99 +929,6 @@ export default function ProductPage({ handle }) {
             </div>
           ))}
 
-          {/* Size guide accordion */}
-          <div className="pdp2-accordion__item">
-            <button
-              className="pdp2-accordion__trigger"
-              onClick={() => setSizeGuideOpen(v => !v)}
-              aria-expanded={sizeGuideOpen}
-            >
-              <span>SIZE AND FIT</span>
-              <span className="pdp2-accordion__icon">{sizeGuideOpen ? '−' : '+'}</span>
-            </button>
-            {sizeGuideOpen && (
-              <div className="pdp2-accordion__body pdp2-accordion__body--open">
-                <div style={{ padding: '0 4px 20px' }}>
-                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 14 }}>
-                    Measure your foot from heel to longest toe. If between sizes, size up.
-                    {product.fitNote && ` ${product.fitNote}.`}
-                  </p>
-                  <div className="pdp2-size-guide-table-wrap">
-                    <table className="pdp2-size-guide-table">
-                      <thead>
-                        <tr><th>EU</th><th>Foot Length</th><th>UK</th><th>US</th></tr>
-                      </thead>
-                      <tbody>
-                        {[[36,'22.5 cm',3,5.5],[37,'23.5 cm',4,6.5],[38,'24.5 cm',5,7.5],[39,'25.5 cm',6,8.5],[40,'26.5 cm',7,9.5],[41,'27.5 cm',8,10.5]].map(([eu,cm,uk,us]) => (
-                          <tr key={eu} className={product.sizes.includes(eu) ? '' : 'pdp2-size-guide-table__row--unavailable'}>
-                            <td>{eu}{!product.sizes.includes(eu) && <span className="pdp2-sg-unavail"> –</span>}</td>
-                            <td>{cm}</td><td>{uk}</td><td>{us}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════ REVIEWS ═══════════ */}
-      <section className="pdp2-reviews" id="pdp2-reviews" aria-label="Customer reviews">
-        <div className="pdp2-reviews__inner">
-          {/* Mobile: reviews as accordion item */}
-          <div className="pdp2-accordion__item" style={{ marginBottom: 0 }}>
-            <button
-              className="pdp2-accordion__trigger"
-              onClick={() => setAccordion(openAccordion === 99 ? null : 99)}
-              aria-expanded={openAccordion === 99}
-            >
-              <span>Reviews ({isNewArrival ? 0 : product.reviewCount})</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {!isNewArrival && (
-                  <div className="pdp2-stars" aria-hidden="true">
-                    {[1,2,3,4,5].map(s => (
-                      <span key={s} className={`pdp2-star ${s <= Math.round(product.rating) ? 'pdp2-star--filled' : ''}`}>★</span>
-                    ))}
-                  </div>
-                )}
-                <span className="pdp2-accordion__icon">{openAccordion === 99 ? '−' : '+'}</span>
-              </div>
-            </button>
-            <div className={`pdp2-accordion__body ${openAccordion === 99 ? 'pdp2-accordion__body--open' : ''}`}>
-              <div style={{ minHeight: 0 }}>
-                {isNewArrival ? (
-                  <div className="pdp2-reviews__new-arrival" style={{ padding: '0 4px 20px' }}>
-                    <span className="pdp2-reviews__na-badge">✦ New Arrival</span>
-                    <p className="pdp2-reviews__na-text">Be one of the first to review this style.</p>
-                  </div>
-                ) : (
-                  <div className="pdp2-reviews__list" style={{ padding: '8px 0 20px' }}>
-                    {(product.reviews || []).map(r => (
-                      <div key={r.id} className="pdp2-review-card">
-                        <div className="pdp2-review-card__header">
-                          <div>
-                            <div className="pdp2-stars pdp2-stars--sm">
-                              {[1,2,3,4,5].map(s => (
-                                <span key={s} className={`pdp2-star pdp2-star--sm ${s <= r.rating ? 'pdp2-star--filled' : ''}`}>★</span>
-                              ))}
-                            </div>
-                            <span className="pdp2-review-card__author">{r.author}</span>
-                            {r.verified && <span className="pdp2-review-card__verified">✓ Verified</span>}
-                          </div>
-                          <span className="pdp2-review-card__date">{r.date}</span>
-                        </div>
-                        <p className="pdp2-review-card__text">"{r.text}"</p>
-                        {r.fitFeedback && <span className="pdp2-review-card__fit">Fit: {r.fitFeedback}</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
