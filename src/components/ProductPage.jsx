@@ -355,8 +355,8 @@ export default function ProductPage({ handle }) {
       )}
 
       {/* ═══════════════════════════════════════════════
-          HERO — Info first in DOM so it renders above
-          gallery on mobile. CSS grid swaps order on desktop.
+          HERO — CSS places the gallery before product details on mobile;
+          the desktop grid keeps the split gallery and information layout.
       ═══════════════════════════════════════════════ */}
       <section className="pdp2-hero" ref={heroRef}>
 
@@ -521,7 +521,10 @@ export default function ProductPage({ handle }) {
                   {colour.image
                     ? <img className="pdp2-colour-image" src={colour.image} alt="" />
                     : <span className="pdp2-mobile-colour-thumb__swatch" style={{ background: colour.hex }} />}
-                  <span className="pdp2-mobile-colour-thumb__name">{colour.name}</span>
+                  <span className="pdp2-mobile-colour-thumb__name">
+                    <span className="pdp2-colour-indicator" style={{ backgroundColor: colour.hex }} aria-hidden="true" />
+                    {colour.name}
+                  </span>
                 </button>
               ))}
             </div>
@@ -554,7 +557,10 @@ export default function ProductPage({ handle }) {
                     {c.image
                       ? <img className="pdp2-colour-image" src={c.image} alt="" />
                       : <span className="pdp2-colour-swatch__fill" style={{ background: c.hex }} />}
-                    <span className="pdp2-swatch__name">{c.name}</span>
+                    <span className="pdp2-swatch__name">
+                      <span className="pdp2-colour-indicator" style={{ backgroundColor: c.hex }} aria-hidden="true" />
+                      {c.name}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -652,10 +658,10 @@ export default function ProductPage({ handle }) {
                   <article className="pdp2-feature-card">
                     <div className="pdp2-feature-card__image">
                       <img
-                        src="/images/product-details/glitter-flat-cushion.jpg"
-                        alt="Close-up of the red footbed and black strap on the shoe"
-                        width="962"
-                        height="1200"
+                        src="/images/product-details/glitter-flat-footbed-feel.png"
+                        alt="Close-up showing the cushioned burgundy footbed beneath the glossy black strap"
+                        width="1130"
+                        height="1392"
                         loading="lazy"
                         decoding="async"
                       />

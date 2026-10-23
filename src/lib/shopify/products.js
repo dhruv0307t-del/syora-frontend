@@ -145,7 +145,7 @@ export function normaliseProduct(node) {
     const image = variant.image?.url || altImage?.url || null;
     const imageIndex = image ? images.indexOf(image) : -1;
     const knownHex = {
-      black: '#1a1a1a', white: '#f5f3ef', nude: '#c9aa91', beige: '#c9b7a4',
+      black: '#1a1a1a', white: '#f5f3ef', nude: '#c9aa91', beige: '#c9b7a4', burgundy: '#641f35',
       brown: '#684b3b', tan: '#b88962', red: '#a83232', blue: '#46647e',
       gold: '#c5a45a', silver: '#b8b8b8', pink: '#d9a2ad', green: '#526b50',
     };
@@ -163,12 +163,12 @@ export function normaliseProduct(node) {
   // Some Shopify catalogs keep each color as a separate run of gallery photos
   // instead of making color a variant option. Use image alt text when provided.
   if (colourByName.size === 0) {
-    const knownColours = ['black', 'white', 'nude', 'beige', 'brown', 'tan', 'red', 'blue', 'gold', 'silver', 'pink', 'green'];
+    const knownColours = ['black', 'white', 'nude', 'beige', 'burgundy', 'brown', 'tan', 'red', 'blue', 'gold', 'silver', 'pink', 'green'];
     imageNodes.forEach((image, imageIndex) => {
       const altText = image.altText || '';
       const matchedName = knownColours.find((colour) => new RegExp(`\\b${colour}\\b`, 'i').test(altText));
       if (!matchedName || colourByName.has(matchedName)) return;
-      const knownHex = { black: '#1a1a1a', white: '#f5f3ef', nude: '#c9aa91', beige: '#c9b7a4', brown: '#684b3b', tan: '#b88962', red: '#a83232', blue: '#46647e', gold: '#c5a45a', silver: '#b8b8b8', pink: '#d9a2ad', green: '#526b50' };
+      const knownHex = { black: '#1a1a1a', white: '#f5f3ef', nude: '#c9aa91', beige: '#c9b7a4', burgundy: '#641f35', brown: '#684b3b', tan: '#b88962', red: '#a83232', blue: '#46647e', gold: '#c5a45a', silver: '#b8b8b8', pink: '#d9a2ad', green: '#526b50' };
       colourByName.set(matchedName, { name: matchedName[0].toUpperCase() + matchedName.slice(1), hex: knownHex[matchedName], image: image.url, imageIndex });
     });
   }
@@ -179,7 +179,7 @@ export function normaliseProduct(node) {
     colourByName.set('Black', { name: 'Black', hex: '#1a1a1a', image: images[0], imageIndex: 0 });
     colourByName.set('Nude', { name: 'Nude', hex: '#c9aa91', image: images[6], imageIndex: 6 });
   }
-  if (colourByName.size === 0 && node.handle === 'glitter-flat' && images.length > 6) {
+  if (colourByName.size === 0 && node.handle === 'glitter-flat' && images.length > 5) {
     colourByName.set('Black', { name: 'Black', hex: '#1a1a1a', image: images[0], imageIndex: 0 });
     colourByName.set('Burgundy', { name: 'Burgundy', hex: '#641f35', image: images[6], imageIndex: 6 });
   }
@@ -198,6 +198,15 @@ export function normaliseProduct(node) {
     .sort((a, b) => a.imageIndex - b.imageIndex);
   orderedColours.forEach((colour, colourIndex) => {
     const normalizedName = colour.name.trim().toLowerCase();
+    if (node.handle === 'glitter-flat') {
+      // Burgundy begins at gallery image 5; keep every Burgundy image out of Black's set.
+      const splitIndex = 5;
+      colour.galleryIndices = images
+        .map((_, index) => index)
+        .filter((index) => normalizedName === 'burgundy' ? index >= splitIndex : index < splitIndex);
+      return;
+    }
+
     const matchingAltIndices = imageNodes.flatMap((image, index) =>
       image.altText?.toLowerCase().includes(normalizedName) ? [images.indexOf(image.url)] : []
     ).filter((index) => index >= 0);
@@ -206,7 +215,7 @@ export function normaliseProduct(node) {
       return;
     }
 
-    if (node.handle === 'black-pumps' || node.handle === 'glitter-flat' || node.handle === 'tip-dip') {
+    if (node.handle === 'black-pumps' || node.handle === 'tip-dip') {
       const splitIndex = node.handle === 'tip-dip' ? 7 : 6;
       colour.galleryIndices = colour.imageIndex < splitIndex
         ? images.map((_, index) => index).filter((index) => index < splitIndex)
