@@ -102,7 +102,7 @@ export default function ProductGrid({ title, products = [], viewAllLabel = 'VIEW
           {products.map((p) => (
             <ProductCard
               key={p.id}
-              product={universeId === 'icon' ? { ...p, imgHover: p.imgSecond } : p}
+              product={{ ...p, imgHover: p.imgSecond || p.imgHover }}
             />
           ))}
         </div>
