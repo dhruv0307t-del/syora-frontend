@@ -41,14 +41,6 @@ const UNIVERSE_ICONS = {
       <path d="M20 16 C21 13 23 12 26 14" strokeOpacity="0.6" />
     </svg>
   ),
-  'off-duty': (
-    <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="1.4">
-      <path d="M6 22 L26 22" />
-      <path d="M8 22 C8 17 10 14 16 14 C22 14 24 17 24 22" />
-      <path d="M6 22 C6 24 8 26 12 26 L20 26 C24 26 26 24 26 22" />
-      <line x1="16" y1="14" x2="16" y2="10" strokeOpacity="0.5" />
-    </svg>
-  ),
 };
 
 export default function MultiverseEntry() {
@@ -206,9 +198,6 @@ export default function MultiverseEntry() {
           ABOUT US
       ══════════════════════════════════════════ */}
       <section className="mv2-about" id="about" aria-labelledby="mv2-about-title">
-        <div className="mv2-about__img-col">
-          <img src="/about-us.jpg" alt="SYORA craftsmanship" className="mv2-about__img" loading="lazy" decoding="async" />
-        </div>
         <div className="mv2-about__copy">
           <p className="mv2-about__eyebrow">
             <span className="mv2-about__eyebrow-line" />

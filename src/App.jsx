@@ -41,13 +41,11 @@ export default function App() {
           {/* ── Multiverse Entry ── */}
           <Route path="/" element={<MultiverseEntry />} />
 
-          {/* ── Five Universe Pages ── */}
+          {/* ── Universe Pages ── */}
           <Route path="/universe/icon"     element={<UniversePage universe="icon" />} />
           <Route path="/universe/heritage" element={<UniversePage universe="heritage" />} />
           <Route path="/universe/everyday" element={<UniversePage universe="everyday" />} />
           <Route path="/universe/motion"   element={<UniversePage universe="motion" />} />
-          <Route path="/universe/off-duty" element={<UniversePage universe="off-duty" />} />
-
           {/* ── Product Detail Pages ── */}
           <Route path="/product/:handle" element={<ProductPageWrapper />} />
 

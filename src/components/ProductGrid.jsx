@@ -100,16 +100,15 @@ export default function ProductGrid({ title, products = [], viewAllLabel = 'VIEW
       {products.length > 0 ? (
         <div className="product-grid__cards">
           {products.map((p) => (
-            <ProductCard key={p.id} product={p} />
+            <ProductCard
+              key={p.id}
+              product={universeId === 'icon' ? { ...p, imgHover: p.imgSecond } : p}
+            />
           ))}
         </div>
       ) : (
         <div className="product-grid__empty">
-          <p className="product-grid__empty-title">Coming Soon</p>
-          <p className="product-grid__empty-msg">
-            Products for this universe are being curated.<br />
-            Connect your product data in <code>src/data/universes.js</code> to populate this grid.
-          </p>
+          <p className="product-grid__empty-title">Universe in creation, personalised for you</p>
         </div>
       )}
     </section>

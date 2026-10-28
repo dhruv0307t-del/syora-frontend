@@ -1,6 +1,6 @@
 /**
  * SYORA — Universe Data
- * Central configuration for all five universes.
+ * Central configuration for the four active universes.
  * Products are drawn only from existing project assets.
  * To add more products, append to each universe's `products` array.
  */
@@ -14,7 +14,7 @@ import productHero from '../assets/product_hero.png';
 import productHeel from '../assets/product_heel_1.png';
 import secondaryHero from '../assets/secondary_hero.png';
 
-export const UNIVERSE_ORDER = ['icon', 'heritage', 'everyday', 'motion', 'off-duty'];
+export const UNIVERSE_ORDER = ['icon', 'heritage', 'everyday', 'motion'];
 
 export const UNIVERSES = {
   icon: {
@@ -36,7 +36,8 @@ export const UNIVERSES = {
       heroText: '#ffffff',
     },
     heroImage: '/hero-icon.jpg',
-    heroImageAlt: 'SYORA ICON heels',
+    heroImageMobile: '/hero-icon-mobile-new.png',
+    heroImageAlt: 'Model in a burgundy evening gown and heels in a warmly lit, luxurious interior',
     products: [
       { id: 'icon-1', img: heelsImg,   name: 'Strappy Heels',       price: '₹3,499', badge: 'BESTSELLER' },
       { id: 'icon-2', img: productHeel, name: 'Classic Block Heel',  price: '₹3,199', badge: null },
@@ -65,6 +66,7 @@ export const UNIVERSES = {
       heroText: '#ffffff',
     },
     heroImage: '/hero-heritage.jpg',
+    heroImageMobile: '/hero-heritage-mobile.png',
     heroImageAlt: 'SYORA HERITAGE juttis',
     products: [
       { id: 'her-1', img: juttiSig, name: 'Signature Juttis',    price: '₹2,499', badge: 'BESTSELLER' },
@@ -95,6 +97,7 @@ export const UNIVERSES = {
       heroText: '#ffffff',
     },
     heroImage: '/hero-everyday.jpg',
+    heroImageMobile: '/hero-everyday-mobile.png',
     heroImageAlt: 'SYORA EVERYDAY flats and loafers',
     products: [
       { id: 'evr-1', img: juttiEvy,  name: 'Everyday Jutti-Flat', price: '₹2,299', badge: null },
@@ -123,6 +126,7 @@ export const UNIVERSES = {
       heroText: '#ffffff',
     },
     heroImage: '/hero-motion.jpg',
+    heroImageMobile: '/hero-motion-mobile.png',
     heroImageAlt: 'SYORA MOTION sneakers',
     // No sneaker product images in current assets — placeholder grid below
     products: [
@@ -132,29 +136,4 @@ export const UNIVERSES = {
     bestsellers: [],
   },
 
-  'off-duty': {
-    id: 'off-duty',
-    name: 'OFF-DUTY',
-    tagline: 'Rest looks good on you.',
-    headline: 'SWITCH OFF.\nSTYLE ON.',
-    editorial: 'OFF-DUTY is your permission to slow down without losing your style. Clogs, slides and relaxed footwear that say you chose comfort — and you chose it well.',
-    cta: 'SHOP CLOGS & SLIDES',
-    palette: {
-      bg: '#f2ede4',
-      accent: '#5a6e4a',
-      text: '#1e1a14',
-      muted: 'rgba(30,26,20,0.6)',
-      border: 'rgba(90,110,74,0.2)',
-      heroOverlay: 'transparent',
-      heroGradient: 'transparent',
-      heroText: '#ffffff',
-    },
-    heroImage: '/hero-off-duty.jpg',
-    heroImageAlt: 'SYORA OFF-DUTY clogs and slides',
-    products: [
-      // ⚠️ CONNECT CLOG/SLIDE PRODUCT DATA HERE
-      // Add objects: { id, img, name, price, badge }
-    ],
-    bestsellers: [],
-  },
 };

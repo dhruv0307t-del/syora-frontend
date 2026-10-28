@@ -49,14 +49,22 @@ export default function UniversePage({ universe: universeId }) {
       <Navbar universeMode universeId={universeId} />
 
       {/* ── 1. Universe Hero ── */}
-      <section className="u-hero" aria-labelledby={`u-hero-title-${universeId}`}>
+      <section
+        className={`u-hero${universeId === 'icon' ? ' u-hero--icon' : ''}`}
+        aria-labelledby={`u-hero-title-${universeId}`}
+      >
         {/* Background image */}
         <div className="u-hero__img-wrap">
-          <img
-            src={u.heroImage}
-            alt={u.heroImageAlt}
-            className="u-hero__img"
-          />
+          <picture>
+            {u.heroImageMobile && (
+              <source media="(max-width: 768px)" srcSet={u.heroImageMobile} />
+            )}
+            <img
+              src={u.heroImage}
+              alt={u.heroImageAlt}
+              className="u-hero__img"
+            />
+          </picture>
           <div className="u-hero__overlay" style={{ background: palette.heroOverlay }} />
         </div>
 

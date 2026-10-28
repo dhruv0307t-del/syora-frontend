@@ -8,6 +8,17 @@ import { formatMoney } from '../lib/shopify/products';
 import { getCheckoutUrl } from '../lib/shopify/cart';
 import { trackViewItem, trackAddToCart } from '../lib/analytics';
 
+// Existing Shopify gallery views, curated by product so each feature card
+// shows the same kind of detail across the Everyday collection.
+const EVERYDAY_FEATURE_GALLERY_INDEX = {
+  'syora-flat-5': { cushioning: 4, finish: 2, sole: 5 },
+  'syora-flat-4': { cushioning: 1, finish: 2, sole: 5 },
+  'syora-flat-3': { cushioning: 4, finish: 2, sole: 5 },
+  'syora-flat-2': { cushioning: 2, finish: 4, sole: 5 },
+  'syora-flat-1': { cushioning: 4, finish: 2, sole: 5 },
+  'zebra-flats': { cushioning: 2, finish: 4, sole: 5 },
+};
+
 export default function ProductPage({ handle }) {
   const navigate = useNavigate();
 
@@ -32,22 +43,10 @@ export default function ProductPage({ handle }) {
   const [openProductPanel, setProductPanel] = useState(null);
   const [shareFeedback, setShareFeedback] = useState('');
   const [openFaq, setOpenFaq]             = useState(null);
-  const [stickyVisible, setStickyVisible] = useState(false);
 
   const heroRef     = useRef(null);
   const sizeGuideRef = useRef(null);
   const touchStartX = useRef(null);
-
-  useEffect(() => {
-    const hero = heroRef.current;
-    if (!hero) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => setStickyVisible(!entry.isIntersecting),
-      { threshold: 0 }
-    );
-    obs.observe(hero);
-    return () => obs.disconnect();
-  }, []);
 
   useEffect(() => {
     setColour(0);
@@ -113,6 +112,9 @@ export default function ProductPage({ handle }) {
     return product.images.map((_, imageIndex) => imageIndex);
   }
 
+  const isGlitterFlatBurgundy = handle === 'glitter-flat'
+    && product?.colours?.[selectedColour]?.name?.toLowerCase() === 'burgundy';
+
   // Loading state
   if (productLoading) {
     return (
@@ -143,7 +145,9 @@ export default function ProductPage({ handle }) {
             <button onClick={() => navigate('/')}>THE MULTIVERSE</button>
           </div>
         </div>
-        <Footer />
+
+
+      <Footer />
       </div>
     );
   }
@@ -259,11 +263,17 @@ export default function ProductPage({ handle }) {
     icon: 'heels', heritage: 'juttis', everyday: 'flats and loafers', motion: 'sneakers',
     'off-duty': 'clogs, slides and Crocs-style comfort shoes', boots: 'boots',
   }[stylingUniverse] || 'flats';
-  const stylingLooks = {
+  const stylingLooks = handle === 'black-pump'
+    ? [
+      { image: 'black-pump-formals-model.png', title: 'Formals', note: 'A sharp, confident finish for workdays and polished occasions.', alt: 'Model wearing black SYORA slingback heels with tailored formal trousers and a black blazer' },
+      { image: 'black-pump-dress-model.png', title: 'Dress', note: 'A sleek black heel for evening dresses and special plans.', alt: 'Model wearing black SYORA slingback heels with an elegant black evening dress' },
+      { image: 'black-pump-indo-western-model.png', title: 'Indo-western', note: 'Classic black heels bring a refined finish to festive fusion wear.', alt: 'Model wearing black SYORA slingback heels with a black and gold Indo-western outfit' },
+    ]
+    : {
     icon: [
-      { image: 'lehenga-style.png', title: 'Lehenga', note: 'A polished finishing touch for festive evenings.' },
-      { image: 'saree-style.png', title: 'Saree', note: 'An elegant pairing for celebrations and occasions.' },
-      { image: 'anarkali-style.png', title: 'Anarkali', note: 'A graceful look for dressed-up moments.' },
+      { image: 'heels-saree-model.png', title: 'Saree', note: 'A graceful saree look for celebrations and evenings.', alt: 'Model wearing SYORA black heels with a sage green saree' },
+      { image: 'heels-western-model.png', title: 'Western', note: 'A polished heel to finish tailored western looks.', alt: 'Model wearing SYORA black heels with a black top and tailored trousers' },
+      { image: 'heels-indo-western-model.png', title: 'Indo-western', note: 'A contemporary fusion look, finished with classic heels.', alt: 'Model wearing SYORA black heels with an embroidered Indo-western outfit' },
     ],
     heritage: [
       { image: 'lehenga-style.png', title: 'Lehenga', note: 'Traditional craft meets a festive silhouette.' },
@@ -290,7 +300,56 @@ export default function ProductPage({ handle }) {
       { image: 'denim-sneakers.png', title: 'Denim', note: 'A versatile pairing for everyday wear.' },
       { image: 'lehenga-style.png', title: 'Festive', note: 'A modern contrast for statement dressing.' },
     ],
-  }[stylingUniverse] || [];
+    }[stylingUniverse] || [];
+
+  const isEverydayFlat = stylingUniverse === 'everyday'
+    && /\bflats?\b/.test(categoryText)
+    && handle !== 'glitter-flat';
+  const everydayFeatureIndices = EVERYDAY_FEATURE_GALLERY_INDEX[handle]
+    || { cushioning: 2, finish: 4, sole: 5 };
+  const everydayGallery = (product.imageDetails?.length
+    ? product.imageDetails
+    : (product.images || []).map((url, index) => ({ url, index, altText: '' })))
+    .filter((image) => image?.url);
+  const usedEverydayImages = new Set();
+  const chooseEverydayImage = (pattern, fallbackIndex) => {
+    const semanticImage = everydayGallery.find((image) =>
+      !usedEverydayImages.has(image.url) && pattern.test(image.altText || '')
+    );
+    const image = semanticImage
+      || everydayGallery.find((candidate, index) => !usedEverydayImages.has(candidate.url) && index >= fallbackIndex)
+      || everydayGallery.find((candidate) => !usedEverydayImages.has(candidate.url))
+      || everydayGallery[fallbackIndex % Math.max(everydayGallery.length, 1)];
+    if (image) usedEverydayImages.add(image.url);
+    return image;
+  };
+  const availableFact = (value) => value && !/^(—|-|n\/a)$/i.test(String(value).trim());
+  const cushionFact = product.benefits?.find(({ text = '' }) => /cushion|foam|footbed|insole/i.test(text))?.text
+    || (availableFact(product.soleType) && /cushion|foam|footbed|insole/i.test(product.soleType) ? product.soleType : null)
+    || (availableFact(product.comfortProfile?.cushioning) ? `${product.comfortProfile.cushioning} cushioning` : null);
+  const comfortFact = availableFact(product.comfortProfile?.bestForHours)
+    ? `Comfort profile: ${product.comfortProfile.bestForHours}.`
+    : (availableFact(product.soleType) ? `${product.soleType}.` : null);
+  const everydayCloserLook = isEverydayFlat && everydayGallery.length > 0 ? [
+    {
+      title: 'Cushioning',
+      image: chooseEverydayImage(/footbed|insole|cushion|foam|interior/i, everydayFeatureIndices.cushioning),
+      copy: cushionFact || `A close look at the footbed of ${product.name}.`,
+    },
+    {
+      title: 'Stitching & finish',
+      image: chooseEverydayImage(/stitch|seam|texture|upper|finish|close.?up|detail/i, everydayFeatureIndices.finish),
+      copy: availableFact(product.material)
+        ? `A closer look at the ${product.material} upper and its visible finish.`
+        : `A close-up of the upper finish, edge detailing, and stitching on ${product.name}.`,
+    },
+    {
+      title: 'Comfort & sole',
+      image: chooseEverydayImage(/sole|outsole|side|profile|base|comfort|wear/i, everydayFeatureIndices.sole),
+      copy: comfortFact || `A side or outsole view of ${product.name}, showing its sole profile.`,
+    },
+  ] : [];
+
   const policyPanels = [
     {
       title: 'SHIPPING & EXCHANGE',
@@ -360,7 +419,7 @@ export default function ProductPage({ handle }) {
       ═══════════════════════════════════════════════ */}
       <section className="pdp2-hero" ref={heroRef}>
 
-        {/* ── Info panel TOP (renders FIRST = above gallery on mobile) ── */}
+          {/* Product name and price follow the gallery in the mobile reading order. */}
         <div className="pdp2-info-top pdp2-info">
           {/* Mobile: breadcrumb / universe label */}
           <nav className="pdp2-info__breadcrumb" aria-label="Breadcrumb">
@@ -501,11 +560,6 @@ export default function ProductPage({ handle }) {
           </div>
         </div>
 
-        <section className="pdp2-description" aria-label="Product description">
-          <p className="pdp2-description__eyebrow">PRODUCT DESCRIPTION</p>
-          <p className="pdp2-description__text">{product.description || 'Product description will be available soon.'}</p>
-        </section>
-
         {product.colours?.length > 0 && (
           <div className="pdp2-mobile-colours pdp2-mobile-only">
             <p className="pdp2-mobile-colours__label">Colours</p>
@@ -615,237 +669,6 @@ export default function ProductPage({ handle }) {
             )}
           </div>
 
-          {/* ── CTA row ── */}
-          <div className="pdp2-cta-row">
-            <button
-              id={`pdp2-buy-now-${handle}`}
-              className={`pdp2-cta-buy ${addedToCart ? 'pdp2-cta-buy--done' : ''} ${!selectedSize ? 'pdp2-cta-buy--unselected' : ''}`}
-              onClick={handleBuyNow}
-            >
-              <span>{ctaLabel}</span>
-              {!addedToCart && <span className="pdp2-cta-buy__arrow">→</span>}
-            </button>
-            <button
-              className={`pdp2-cta-wishlist ${wishlisted ? 'pdp2-cta-wishlist--active' : ''}`}
-              onClick={() => setWishlisted(w => !w)}
-              aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-            >
-              {wishlisted ? '♥' : '♡'}
-            </button>
-          </div>
-
-          <div className="pdp2-product-panels" aria-label="Product information and policies">
-            {policyPanels.map((panel, index) => (
-              <div key={panel.title} className="pdp2-accordion__item">
-                <button
-                  className="pdp2-accordion__trigger"
-                  onClick={() => setProductPanel(openProductPanel === index ? null : index)}
-                  aria-expanded={openProductPanel === index}
-                >
-                  <span>{panel.title}</span>
-                  <span className="pdp2-accordion__icon">{openProductPanel === index ? '−' : '+'}</span>
-                </button>
-                <div className={`pdp2-accordion__body ${openProductPanel === index ? 'pdp2-accordion__body--open' : ''}`}>
-                  <div className="pdp2-product-panel__content">{panel.content}</div>
-                </div>
-              </div>
-            ))}
-
-            {handle === 'glitter-flat' && (
-              <section className="pdp2-feature-stories" aria-labelledby="pdp2-feature-stories-title">
-                <h2 id="pdp2-feature-stories-title">A closer look</h2>
-                <div className="pdp2-feature-stories__grid">
-                  <article className="pdp2-feature-card">
-                    <div className="pdp2-feature-card__image">
-                      <img
-                        src="/images/product-details/glitter-flat-footbed-feel.png"
-                        alt="Close-up showing the cushioned burgundy footbed beneath the glossy black strap"
-                        width="1130"
-                        height="1392"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
-                    <div className="pdp2-feature-card__copy">
-                      <span>01</span>
-                      <h3>Footbed feel</h3>
-                      <p>A closer view of the footbed, framed by the glossy strap.</p>
-                    </div>
-                  </article>
-                  <article className="pdp2-feature-card">
-                    <div className="pdp2-feature-card__image">
-                      <img
-                        src="/images/product-details/glitter-flat-texture.jpg"
-                        alt="Macro detail of the glossy black upper and stitched edge"
-                        width="962"
-                        height="1200"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
-                    <div className="pdp2-feature-card__copy">
-                      <span>02</span>
-                      <h3>Finish &amp; stitching</h3>
-                      <p>The smooth patent finish and fine edge detail up close.</p>
-                    </div>
-                  </article>
-                  <article className="pdp2-feature-card">
-                    <div className="pdp2-feature-card__image">
-                      <img
-                        src="/images/product-details/glitter-flat-heel.jpg"
-                        alt="Side close-up showing the shoe's broad low block heel"
-                        width="962"
-                        height="1200"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
-                    <div className="pdp2-feature-card__copy">
-                      <span>03</span>
-                      <h3>Heel height &amp; base</h3>
-                      <p>A side view of the low block heel and its broad base.</p>
-                    </div>
-                  </article>
-                </div>
-              </section>
-            )}
-
-            {handle === 'glitter-flat' && (
-              <section
-                id="pdp2-size-guidance"
-                ref={sizeGuideRef}
-                className="pdp2-size-guidance"
-                aria-labelledby="pdp2-size-guidance-title"
-              >
-                <div className="pdp2-size-guidance__tabbar">
-                  <h2 id="pdp2-size-guidance-title">WOMEN</h2>
-                </div>
-                <div className="pdp2-size-guidance__table-wrap">
-                  <table className="pdp2-size-guidance__table">
-                    <thead>
-                      <tr><th scope="col">EU/IND</th><th scope="col">UK</th><th scope="col">US</th><th scope="col">CM</th></tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        [35, 2, 5, '22.5'],
-                        [36, 3, 6, '23'],
-                        [37, 4, 7, '24'],
-                        [38, 5, 8, '24.5'],
-                        [39, 6, 9, '25'],
-                        [40, 7, 10, '25.5'],
-                        [41, 8, 11, '26'],
-                        [42, 9, 12, '26.5'],
-                      ].map(([eu, uk, us, cm]) => (
-                        <tr key={eu}><td>{eu}</td><td>{uk}</td><td>{us}</td><td>{cm}</td></tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <p className="pdp2-size-guidance__note">
-                  <strong>Foot Length:</strong> Measure from the tip of your longest toe to the back of your heel.
-                </p>
-                <img
-                  className="pdp2-size-guidance__illustration"
-                  src="/images/product-details/foot-measurement-guide.png"
-                  alt="Foot measurement guide showing side and sole views"
-                  width="560"
-                  height="576"
-                  loading="lazy"
-                  decoding="async"
-                />
-              </section>
-            )}
-
-            {stylingLooks.length > 0 && (
-              <section className="pdp2-styling" aria-labelledby="pdp2-styling-title">
-                <p className="pdp2-styling__eyebrow">STYLING</p>
-                <h2 id="pdp2-styling-title">Pairs beautifully with {footwearLabel}</h2>
-                <div className="pdp2-styling__grid">
-                  {stylingLooks.map((look, index) => (
-                    <article className="pdp2-styling-card" key={look.image}>
-                      <img
-                        src={`/images/styling/${look.image}`}
-                        alt={`${look.title} outfit styling illustration`}
-                        width="600"
-                        height="750"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <div className="pdp2-styling-card__copy">
-                        <span>{String(index + 1).padStart(2, '0')}</span>
-                        <h3>{look.title}</h3>
-                        <p>{look.note}</p>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            <div className="pdp2-product-social">
-              <button className="pdp2-product-share" onClick={handleShareProduct}>
-                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.4M8.7 13.3l6.6 4.4"/></svg>
-                {shareFeedback || 'SHARE'}
-              </button>
-              <button
-                className="pdp2-product-rating"
-                onClick={() => setProductPanel(openProductPanel === 'reviews' ? null : 'reviews')}
-                aria-expanded={openProductPanel === 'reviews'}
-                aria-controls="pdp2-product-reviews"
-              >
-                <span className="pdp2-product-rating__stars" aria-label={hasRating ? `${displayRating} out of 5 stars` : 'No rating yet'}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <span
-                      key={star}
-                      className={hasRating ? 'is-filled' : ''}
-                      style={hasRating ? {
-                        background: `linear-gradient(90deg, #59654d ${Math.max(0, Math.min(1, Number(displayRating) - star + 1)) * 100}%, #bdbdbd ${Math.max(0, Math.min(1, Number(displayRating) - star + 1)) * 100}%)`,
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                      } : undefined}
-                    >★</span>
-                  ))}
-                </span>
-                <span>{hasRating ? `${reviewCount} reviews | ${Number(displayRating).toFixed(1)}` : `${reviewCount} reviews`}</span>
-              </button>
-            </div>
-            <div
-              id="pdp2-product-reviews"
-              className={`pdp2-accordion__body ${openProductPanel === 'reviews' ? 'pdp2-accordion__body--open' : ''}`}
-            >
-              <div className="pdp2-product-panel__content">
-                {isDemoReviews && (
-                  <p className="pdp2-review-demo-note">
-                    Demo reviews with sample copy and ratings. Replace with verified customer feedback before publishing.
-                  </p>
-                )}
-                {reviewList.length ? reviewList.map((review) => (
-                  <article key={review.id} className="pdp2-review-card">
-                    <div className="pdp2-review-card__header">
-                      <span className="pdp2-review-card__author">{review.author}</span>
-                      <span className="pdp2-review-card__date">{review.date}</span>
-                    </div>
-                    {isDemoReviews && (
-                      <div className="pdp2-review-card__stars" aria-label={`${review.rating} out of 5 stars`}>
-                        {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
-                      </div>
-                    )}
-                    <p className="pdp2-review-card__text">{review.text}</p>
-                  </article>
-                )) : <p>{reviewCount ? 'Review details are not available yet.' : 'No reviews yet. Be the first to share your experience.'}</p>}
-              </div>
-            </div>
-          </div>
-
-          {/* Desktop: Add to Cart */}
-          <button
-            id={`pdp2-add-cart-${handle}`}
-            className={`pdp2-cta-cart pdp2-desktop-only ${addedToCart ? 'pdp2-cta-cart--done' : ''}`}
-            onClick={handleAddToCart}
-          >
-            {addedToCart ? '✓ ADDED TO CART' : 'Add to Cart'}
-          </button>
-
           {/* ── Delivery PIN checker (desktop only) ── */}
           <div className="pdp2-pin-checker pdp2-desktop-only">
             <p className="pdp2-pin-checker__label">
@@ -883,6 +706,318 @@ export default function ProductPage({ handle }) {
         </div>
 
       </section>
+
+            {everydayCloserLook.length > 0 && (
+              <section className="pdp2-feature-stories" aria-labelledby="pdp2-everyday-stories-title">
+                <h2 id="pdp2-everyday-stories-title">A closer look</h2>
+                <div className="pdp2-feature-stories__grid">
+                  {everydayCloserLook.map((story, index) => (
+                    <article className="pdp2-feature-card" key={`${product.handle}-everyday-detail-${index}`}>
+                      <div className="pdp2-feature-card__image">
+                        <img
+                          src={story.image.url}
+                          alt={story.image.altText || `${product.name} — product gallery view ${(story.image.index ?? 0) + 1}`}
+                          width={story.image.width || undefined}
+                          height={story.image.height || undefined}
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
+                      <div className="pdp2-feature-card__copy">
+                        <span>{String(index + 1).padStart(2, '0')}</span>
+                        <h3>{story.title}</h3>
+                        <p>{story.copy}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {handle === 'glitter-flat' && (
+              <section className="pdp2-feature-stories" aria-labelledby="pdp2-feature-stories-title">
+                <h2 id="pdp2-feature-stories-title">A closer look</h2>
+                <div className="pdp2-feature-stories__grid">
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src={isGlitterFlatBurgundy
+                          ? '/images/product-details/glitter-flat-burgundy-footbed-feel.png'
+                          : '/images/product-details/glitter-flat-footbed-feel.png'}
+                        alt={isGlitterFlatBurgundy
+                          ? 'Close-up of the Burgundy Glitter Flat footbed with the gold SYORA wordmark'
+                          : 'Close-up showing the cushioned burgundy footbed beneath the glossy black strap'}
+                        width="1130"
+                        height="1392"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>01</span>
+                      <h3>Footbed feel</h3>
+                      <p>A closer view of the footbed, framed by the glossy strap.</p>
+                    </div>
+                  </article>
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src={isGlitterFlatBurgundy
+                          ? '/images/product-details/glitter-flat-burgundy-finish-stitching.png'
+                          : '/images/product-details/glitter-flat-texture.jpg'}
+                        alt={isGlitterFlatBurgundy
+                          ? 'Macro detail of the Burgundy patent upper and stitched edge'
+                          : 'Macro detail of the glossy black upper and stitched edge'}
+                        width="962"
+                        height="1200"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>02</span>
+                      <h3>Finish &amp; stitching</h3>
+                      <p>The smooth patent finish and fine edge detail up close.</p>
+                    </div>
+                  </article>
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src={isGlitterFlatBurgundy
+                          ? '/images/product-details/glitter-flat-burgundy-heel-base.png'
+                          : '/images/product-details/glitter-flat-heel.jpg'}
+                        alt={isGlitterFlatBurgundy
+                          ? 'Side close-up of the Burgundy Glitter Flat heel and base'
+                          : "Side close-up showing the shoe's broad low block heel"}
+                        width="962"
+                        height="1200"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>03</span>
+                      <h3>Heel height &amp; base</h3>
+                      <p>A side view of the low block heel and its broad base.</p>
+                    </div>
+                  </article>
+                </div>
+              </section>
+            )}
+
+            {handle === 'black-pumps' && (
+              <section className="pdp2-feature-stories" aria-labelledby="pdp2-feature-stories-title">
+                <h2 id="pdp2-feature-stories-title">A closer look</h2>
+                <div className="pdp2-feature-stories__grid">
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src="/images/product-details/black-pumps-cushioning.png"
+                        alt="Close-up of the Black Pumps cushioned burgundy footbed, pressed to show its padding"
+                        width="1254"
+                        height="1254"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>01</span>
+                      <h3>Cushioned insole</h3>
+                      <p>A close-up of the soft burgundy footbed and its gentle cushioning.</p>
+                    </div>
+                  </article>
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src="/images/product-details/black-pumps-stitching.png"
+                        alt="Macro detail of the Black Pumps glossy black finish and fine stitched edge"
+                        width="1254"
+                        height="1254"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>02</span>
+                      <h3>Finish &amp; stitching</h3>
+                      <p>Look closely at the glossy patent finish and neatly stitched edge.</p>
+                    </div>
+                  </article>
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src={product.images?.[3] || product.images?.[0]}
+                        alt="Fourth gallery view of the Black Pumps showing the block heel height and base"
+                        width="1200"
+                        height="1200"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>03</span>
+                      <h3>Block height</h3>
+                      <p>A side view of the heel height and the shape of its base.</p>
+                    </div>
+                  </article>
+                </div>
+              </section>
+            )}
+
+            {handle === 'black-pump' && (
+              <section className="pdp2-feature-stories" aria-labelledby="pdp2-feature-stories-title">
+                <h2 id="pdp2-feature-stories-title">A closer look</h2>
+                <div className="pdp2-feature-stories__grid">
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src="/images/product-details/black-pump-cushioning.png"
+                        alt="Close-up of the Black Pump's cushioned black footbed being pressed to show its padding"
+                        width="1656"
+                        height="1110"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>01</span>
+                      <h3>Cushioned insole</h3>
+                      <p>A close-up of the soft footbed and its gentle cushioning.</p>
+                    </div>
+                  </article>
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src="/images/product-details/black-pump-stitching.png"
+                        alt="Macro detail of the Black Pump's glossy patent finish and fine stitched edge"
+                        width="1536"
+                        height="1024"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>02</span>
+                      <h3>Finish &amp; stitching</h3>
+                      <p>Look closely at the glossy patent finish and neatly stitched edge.</p>
+                    </div>
+                  </article>
+                  <article className="pdp2-feature-card">
+                    <div className="pdp2-feature-card__image">
+                      <img
+                        src={product.images?.[3] || product.images?.[0]}
+                        alt="Close-up from the fourth Black Pump gallery image, focused on the slingback heel and heel base"
+                        width="1200"
+                        height="1200"
+                        loading="lazy"
+                        decoding="async"
+                        style={{
+                          objectPosition: 'left center',
+                          transform: 'scale(1.25)',
+                          transformOrigin: 'left center',
+                        }}
+                      />
+                    </div>
+                    <div className="pdp2-feature-card__copy">
+                      <span>03</span>
+                      <h3>Heel height &amp; base</h3>
+                      <p>A closer view of the slingback heel and its base.</p>
+                    </div>
+                  </article>
+                </div>
+              </section>
+            )}
+
+            {stylingLooks.length > 0 && (
+              <section className="pdp2-styling" aria-labelledby="pdp2-styling-title">
+                <p className="pdp2-styling__eyebrow">STYLING</p>
+                <h2 id="pdp2-styling-title">Pairs beautifully with {footwearLabel}</h2>
+                <div className="pdp2-styling__grid">
+                  {stylingLooks.map((look, index) => (
+                    <article
+                      className={`pdp2-styling-card${stylingUniverse === 'icon' ? ' pdp2-styling-card--model' : ''}`}
+                      key={look.image}
+                    >
+                      <img
+                        src={`/images/styling/${look.image}`}
+                        alt={look.alt || `${look.title} outfit styling illustration`}
+                        width="600"
+                        height="750"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <div className="pdp2-styling-card__copy">
+                        <span>{String(index + 1).padStart(2, '0')}</span>
+                        <h3>{look.title}</h3>
+                        <p>{look.note}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            )}
+
+      <section
+        id="pdp2-size-guidance"
+        ref={sizeGuideRef}
+        className="pdp2-size-guidance"
+        aria-labelledby="pdp2-size-guidance-title"
+      >
+        <div className="pdp2-size-guidance__tabbar">
+          <h2 id="pdp2-size-guidance-title">WOMEN</h2>
+        </div>
+        <div className="pdp2-size-guidance__table-wrap">
+          <table className="pdp2-size-guidance__table">
+            <thead>
+              <tr><th scope="col">EU/IND</th><th scope="col">UK</th><th scope="col">US</th><th scope="col">CM</th></tr>
+            </thead>
+            <tbody>
+              {[
+                [35, 2, 5, '22.5'],
+                [36, 3, 6, '23'],
+                [37, 4, 7, '24'],
+                [38, 5, 8, '24.5'],
+                [39, 6, 9, '25'],
+                [40, 7, 10, '25.5'],
+                [41, 8, 11, '26'],
+                [42, 9, 12, '26.5'],
+              ].map(([eu, uk, us, cm]) => (
+                <tr key={eu}><td>{eu}</td><td>{uk}</td><td>{us}</td><td>{cm}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="pdp2-size-guidance__note">
+          <strong>Foot Length:</strong> Measure from the tip of your longest toe to the back of your heel.
+        </p>
+        <img
+          className="pdp2-size-guidance__illustration"
+          src="/images/product-details/foot-measurement-guide.png"
+          alt="Foot measurement guide showing side and sole views"
+          width="560"
+          height="576"
+          loading="lazy"
+          decoding="async"
+        />
+      </section>
+
+      <div className="pdp2-cta-row pdp2-cta-row--after-guide" role="group" aria-label="Buy after size guide">
+        <button
+          id={`pdp2-buy-now-after-guide-${handle}`}
+          className={`pdp2-cta-buy ${addedToCart ? 'pdp2-cta-buy--done' : ''} ${!selectedSize ? 'pdp2-cta-buy--unselected' : ''}`}
+          onClick={handleBuyNow}
+        >
+          <span>{ctaLabel}</span>
+          {!addedToCart && <span className="pdp2-cta-buy__arrow">→</span>}
+        </button>
+      </div>
+
+      <section className="pdp2-description" aria-label="Product description">
+        <p className="pdp2-description__eyebrow">PRODUCT DESCRIPTION</p>
+        <p className="pdp2-description__text">{product.description || 'Product description will be available soon.'}</p>
+      </section>
+
+
 
       {/* ═══════════ WHY YOU'LL LOVE IT ═══════════ */}
       {(product.oneLineHook || product.benefits?.length > 0) && (
@@ -1029,40 +1164,101 @@ export default function ProductPage({ handle }) {
         </section>
       )}
 
-      <Footer />
+          <div className="pdp2-product-panels" aria-label="Product information and policies">
+            {policyPanels.map((panel, index) => (
+              <div key={panel.title} className="pdp2-accordion__item">
+                <button
+                  className="pdp2-accordion__trigger"
+                  onClick={() => setProductPanel(openProductPanel === index ? null : index)}
+                  aria-expanded={openProductPanel === index}
+                >
+                  <span>{panel.title}</span>
+                  <span className="pdp2-accordion__icon">{openProductPanel === index ? '−' : '+'}</span>
+                </button>
+                <div className={`pdp2-accordion__body ${openProductPanel === index ? 'pdp2-accordion__body--open' : ''}`}>
+                  <div className="pdp2-product-panel__content">{panel.content}</div>
+                </div>
+              </div>
+            ))}
 
-      {/* ═══════════ STICKY BUY BAR ═══════════ */}
-      <div
-        className={`pdp2-sticky-bar ${stickyVisible ? 'pdp2-sticky-bar--visible' : ''}`}
-        aria-hidden={!stickyVisible}
-        role="region"
-        aria-label="Quick buy"
-      >
-        <div className="pdp2-sticky-bar__info">
-          <span className="pdp2-sticky-bar__price">
-            {product.price ? `₹${product.price.toLocaleString('en-IN')}` : ''}
-          </span>
-          <span className="pdp2-sticky-bar__size">
-            {selectedSize ? `Size: ${selectedSize}` : 'Select size'}
-          </span>
-        </div>
-        <button
-          id="pdp2-sticky-buy"
-          className="pdp2-sticky-bar__btn"
-          onClick={handleBuyNow}
-          disabled={isProcessing}
-        >
-          {isProcessing ? 'ADDING…' : selectedSize ? 'BUY NOW' : 'SELECT SIZE'}
-          {!isProcessing && <span style={{ marginLeft: 8 }}>→</span>}
-        </button>
-        <button
-          className={`pdp2-sticky-bar__wish ${wishlisted ? 'pdp2-sticky-bar__wish--active' : ''}`}
-          onClick={() => setWishlisted(w => !w)}
-          aria-label="Wishlist"
-        >
-          {wishlisted ? '♥' : '♡'}
-        </button>
+
+
+
+
+            <div className="pdp2-product-social">
+              <button className="pdp2-product-share" onClick={handleShareProduct}>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.4M8.7 13.3l6.6 4.4"/></svg>
+                {shareFeedback || 'SHARE'}
+              </button>
+              <button
+                className="pdp2-product-rating"
+                onClick={() => setProductPanel(openProductPanel === 'reviews' ? null : 'reviews')}
+                aria-expanded={openProductPanel === 'reviews'}
+                aria-controls="pdp2-product-reviews"
+              >
+                <span className="pdp2-product-rating__stars" aria-label={hasRating ? `${displayRating} out of 5 stars` : 'No rating yet'}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={hasRating ? 'is-filled' : ''}
+                      style={hasRating ? {
+                        background: `linear-gradient(90deg, #59654d ${Math.max(0, Math.min(1, Number(displayRating) - star + 1)) * 100}%, #bdbdbd ${Math.max(0, Math.min(1, Number(displayRating) - star + 1)) * 100}%)`,
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                      } : undefined}
+                    >★</span>
+                  ))}
+                </span>
+                <span>{hasRating ? `${reviewCount} reviews | ${Number(displayRating).toFixed(1)}` : `${reviewCount} reviews`}</span>
+              </button>
+            </div>
+            <div
+              id="pdp2-product-reviews"
+              className={`pdp2-accordion__body ${openProductPanel === 'reviews' ? 'pdp2-accordion__body--open' : ''}`}
+            >
+              <div className="pdp2-product-panel__content">
+                {isDemoReviews && (
+                  <p className="pdp2-review-demo-note">
+                    Demo reviews with sample copy and ratings. Replace with verified customer feedback before publishing.
+                  </p>
+                )}
+                {reviewList.length ? reviewList.map((review) => (
+                  <article key={review.id} className="pdp2-review-card">
+                    <div className="pdp2-review-card__header">
+                      <span className="pdp2-review-card__author">{review.author}</span>
+                      <span className="pdp2-review-card__date">{review.date}</span>
+                    </div>
+                    {isDemoReviews && (
+                      <div className="pdp2-review-card__stars" aria-label={`${review.rating} out of 5 stars`}>
+                        {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
+                      </div>
+                    )}
+                    <p className="pdp2-review-card__text">{review.text}</p>
+                  </article>
+                )) : <p>{reviewCount ? 'Review details are not available yet.' : 'No reviews yet. Be the first to share your experience.'}</p>}
+              </div>
+            </div>
+          </div>
+
+      <div className="pdp2-cta-row">
+            <button
+              id={`pdp2-buy-now-${handle}`}
+              className={`pdp2-cta-buy ${addedToCart ? 'pdp2-cta-buy--done' : ''} ${!selectedSize ? 'pdp2-cta-buy--unselected' : ''}`}
+              onClick={handleBuyNow}
+            >
+              <span>{ctaLabel}</span>
+              {!addedToCart && <span className="pdp2-cta-buy__arrow">→</span>}
+            </button>
+            <button
+              className={`pdp2-cta-wishlist ${wishlisted ? 'pdp2-cta-wishlist--active' : ''}`}
+              onClick={() => setWishlisted(w => !w)}
+              aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+            >
+              {wishlisted ? '♥' : '♡'}
+            </button>
       </div>
+
+      <Footer />
     </div>
   );
 }

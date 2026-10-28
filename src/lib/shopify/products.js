@@ -76,6 +76,10 @@ export function normaliseProductCard(node) {
   const compareAt   = node.compareAtPriceRange?.minVariantPrice;
   const cardImages  = (node.images?.edges || []).map((edge) => edge.node).filter((image) => image?.url);
   const featuredUrl = node.featuredImage?.url || '';
+  const galleryImages = [
+    featuredUrl,
+    ...cardImages.map((image) => image.url).filter((url) => url && url !== featuredUrl),
+  ];
   const wearingImage = cardImages.find((image) =>
     /model|wear(?:ing)?|on.?foot|lifestyle|girl|woman|styled|lookbook/i.test(image.altText || '')
   ) || [...cardImages].reverse().find((image) => image.url !== featuredUrl);
@@ -92,6 +96,8 @@ export function normaliseProductCard(node) {
     // ProductCard renders product.img
     img:             featuredUrl,
     imgHover:        wearingImage?.url || '',
+    imgSecond:       galleryImages[1] || '',
+    images:          galleryImages,
     imgAlt:          node.featuredImage?.altText || node.title,
     name:            node.title,
     // ProductCard renders product.price as a string
@@ -173,8 +179,8 @@ export function normaliseProduct(node) {
     });
   }
 
-  // This product's listing has no color option or image alt labels. Its first
-  // black image is followed by the nude color set at gallery image seven.
+  // This product's listing has no color option or image alt labels. The
+  // gallery switches from Black to Nude after the first five images.
   if (colourByName.size === 0 && node.handle === 'black-pumps' && images.length > 6) {
     colourByName.set('Black', { name: 'Black', hex: '#1a1a1a', image: images[0], imageIndex: 0 });
     colourByName.set('Nude', { name: 'Nude', hex: '#c9aa91', image: images[6], imageIndex: 6 });
@@ -216,7 +222,7 @@ export function normaliseProduct(node) {
     }
 
     if (node.handle === 'black-pumps' || node.handle === 'tip-dip') {
-      const splitIndex = node.handle === 'tip-dip' ? 7 : 6;
+      const splitIndex = node.handle === 'tip-dip' ? 7 : 5;
       colour.galleryIndices = colour.imageIndex < splitIndex
         ? images.map((_, index) => index).filter((index) => index < splitIndex)
         : images.map((_, index) => index).filter((index) => index >= splitIndex);
@@ -241,20 +247,36 @@ export function normaliseProduct(node) {
       .filter((index) => index >= colour.imageIndex && index < nextColourImage);
   });
 
-  // Shopify option labels vary (for example "Size" and "Shoe size").
-  const isSizeOption = (name = '') => name.toLowerCase().includes('size');
+  // Shopify option labels vary (for example "Size", "Shoe size", or "EU Size").
+  const isSizeOption = (name = '') => /size/i.test(name);
   const sizeOption = (node.options || []).find((option) => isSizeOption(option.name));
-  const sizes = sizeOption ? sizeOption.values : [];
+  const sizeLabelFromVariant = (variant) => {
+    const selectedSize = variant.selectedOptions?.find(({ name }) => isSizeOption(name));
+    if (selectedSize?.value) return String(selectedSize.value).trim();
 
-  // Build variant map: size value → variant node
+    // Some catalogs encode the shoe size in the variant title (e.g. "EU 38" or
+    // "Black / 38") even when the product option is named "Title".
+    const title = String(variant.title || '').trim();
+    const match = title.match(/(?:^|\b)(?:EU\s*)?(3[5-9]|4[0-3])(?:\b|$)/i);
+    return match?.[1] || '';
+  };
+
+  // Derive sizes from both the product option and variants. The latter keeps
+  // the selector populated for Shopify products whose option is misnamed,
+  // while ensuring every displayed size still maps to a real variant.
   const variantMap = {};
-  variants.forEach((v) => {
-    const sizeOpt = v.selectedOptions?.find(
-      (option) => isSizeOption(option.name)
-    );
-    const key = sizeOpt ? sizeOpt.value : v.title;
-    variantMap[key] = v;
+  variants.forEach((variant) => {
+    const size = sizeLabelFromVariant(variant);
+    if (size) variantMap[size] = variant;
   });
+  const optionSizes = (sizeOption?.values || []).map((value) => String(value).trim()).filter(Boolean);
+  const sizes = [...new Set([...optionSizes, ...Object.keys(variantMap)])]
+    .filter((size) => variantMap[size])
+    .sort((a, b) => {
+      const aNumber = Number(String(a).match(/\d+(?:\.\d+)?/)?.[0]);
+      const bNumber = Number(String(b).match(/\d+(?:\.\d+)?/)?.[0]);
+      return Number.isFinite(aNumber) && Number.isFinite(bNumber) ? aNumber - bNumber : a.localeCompare(b);
+    });
 
   // Quantity-level inventory is not queried; keep this shape for compatibility.
   const stockPerSize = {};
@@ -290,6 +312,16 @@ export function normaliseProduct(node) {
     /* Images — Shopify CDN URLs */
     images: images.length ? images : [node.featuredImage?.url].filter(Boolean),
     detailImages: images.slice(0, 3),
+    imageDetails: images.map((url, index) => {
+      const imageNode = imageNodes.find((image) => image.url === url);
+      return {
+        url,
+        index,
+        altText: imageNode?.altText || '',
+        width: imageNode?.width || null,
+        height: imageNode?.height || null,
+      };
+    }),
 
     /* Variants & sizes */
     sizes,

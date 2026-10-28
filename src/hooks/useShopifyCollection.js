@@ -12,7 +12,7 @@ import { useState, useEffect } from 'react';
 import { getCollectionProducts } from '../lib/shopify/products';
 
 /**
- * @param {string} universeId - one of: icon, heritage, everyday, motion, off-duty
+ * @param {string} universeId - one of: icon, heritage, everyday, motion
  * @returns {{ products: Array, bestsellers: Array, loading: boolean, error: string|null }}
  */
 export function useShopifyCollection(universeId) {
